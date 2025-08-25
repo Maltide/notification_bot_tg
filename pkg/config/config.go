@@ -1,7 +1,7 @@
 package config
 
 import (
-	"errors"
+	"fmt"
 	"os"
 )
 
@@ -16,7 +16,7 @@ func LoadConfig() (Config, error) {
 		LogLevel: os.Getenv("LOG_LEVEL"),
 	}
 	if cfg.TGToken == "" || cfg.LogLevel == "" {
-		return Config{}, errors.New("ВОт и все - приехали!!!")
+		return Config{}, fmt.Errorf("ВОт и все - приехали!!!")
 	}
 	return cfg, nil
 }

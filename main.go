@@ -1,9 +1,10 @@
 package main
 
 import (
-	"notification/pkg/config"
-	"notification/pkg/logger"
 	"os"
+
+	"github.com/Maltide/notification_bot_tg/pkg/config"
+	"github.com/Maltide/notification_bot_tg/pkg/logger"
 )
 
 func main() {
@@ -16,4 +17,6 @@ func main() {
 		os.Exit(1)
 	}
 	log.Debug("Это оно?")
+	log.Warn("And what we have here?")
+	log.Info("aaand here?")
 }
