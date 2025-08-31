@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/Maltide/notification_bot_tg/pkg/config"
@@ -10,6 +11,7 @@ import (
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
+		fmt.Fprintln(os.Stderr, "config:", err)
 		os.Exit(1)
 	}
 	log, err := logger.Logger(cfg.LogLevel)
