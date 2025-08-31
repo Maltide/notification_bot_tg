@@ -2,8 +2,6 @@ package types
 
 import (
 	"context"
-	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -12,11 +10,6 @@ type Task struct {
 	Text               string
 	DueAt              time.Time
 	cancel             func()
-}
-type MemoryStore struct {
-	mu     sync.RWMutex
-	nextID atomic.Int64
-	data   map[int64]map[int64]Task
 }
 
 type Store interface {
