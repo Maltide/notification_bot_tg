@@ -6,10 +6,10 @@ import (
 )
 
 type Task struct {
-	ID, UserID, ChatID int64
-	Text               string
-	DueAt              time.Time
-	cancel             func()
+	UserID, ChatID int64
+	Text           string
+	DueAt          time.Time
+	cancel         func()
 }
 
 type Store interface {
