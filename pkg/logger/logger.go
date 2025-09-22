@@ -1,33 +1,25 @@
 package logger
 
 import (
-	"errors"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-var level zapcore.Level
-
-func Logger(loglevel string) (*zap.Logger, error) {
+func Logger(loglevel string) (*zap.SugaredLogger, error) {
 	cfg := zap.NewProductionConfig()
-	switch loglevel {
-	case "debug":
-		level = zapcore.DebugLevel
 
-	case "info":
-		level = zapcore.InfoLevel
-
-	case "warn":
-		level = zapcore.WarnLevel
-
-	case "error":
-		level = zapcore.ErrorLevel
-
-	default:
-		return nil, errors.New("Непонялничего")
+	ourline := strings.ToLower(strings.TrimSpace(loglevel))
+	lvl, err := zapcore.ParseLevel(ourline)
+	if err != nil {
+		lvl = zapcore.InfoLevel
 	}
+	cfg.Level = zap.NewAtomicLevelAt(lvl)
 
-	cfg.Level = zap.NewAtomicLevelAt(level)
-	return cfg.Build()
+	logger, err := cfg.Build()
+	if err != nil {
+		return nil, err
+	}
+	return logger.Sugar(), nil
 }

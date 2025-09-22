@@ -1,4 +1,4 @@
-module notification
+module github.com/Maltide/notification_bot_tg
 
 go 1.24.6
 
