@@ -6,7 +6,11 @@ import (
 	"time"
 )
 
-func ParseAdd(args string, now time.Time) (due time.Time, text string, err error) {
+func NewTimeParser() *TimeParser {
+	return &TimeParser{}
+}
+
+func (tp *TimeParser) ParseAddTask(args string, now time.Time) (due time.Time, text string, err error) {
 	if strings.TrimSpace(args) == "" {
 		return time.Time{}, "", fmt.Errorf("no task yet")
 	}

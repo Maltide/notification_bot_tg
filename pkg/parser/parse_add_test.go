@@ -8,6 +8,8 @@ import (
 func TestParseAdd(t *testing.T) {
 	now := time.Date(2025, 8, 31, 10, 0, 0, 0, time.UTC)
 
+	parser := NewTimeParser()
+
 	tests := []struct {
 		name, args, wantText string
 		wantDue              time.Time
@@ -58,7 +60,7 @@ func TestParseAdd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			due, text, err := ParseAdd(tt.args, now)
+			due, text, err := parser.ParseAddTask(tt.args, now)
 
 			if tt.wantErr {
 				if err == nil {
