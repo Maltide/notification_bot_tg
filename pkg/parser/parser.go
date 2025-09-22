@@ -8,7 +8,7 @@ import (
 
 func ParseAdd(args string, now time.Time) (due time.Time, text string, err error) {
 	if strings.TrimSpace(args) == "" {
-		return time.Time{}, "", fmt.Errorf("No task yet")
+		return time.Time{}, "", fmt.Errorf("no task yet")
 	}
 
 	i := strings.Index(args, " ")
@@ -21,7 +21,7 @@ func ParseAdd(args string, now time.Time) (due time.Time, text string, err error
 
 	dur, err := time.ParseDuration(durationStr)
 	if err != nil || dur <= 0 {
-		return time.Time{}, "", fmt.Errorf("Duration time is zero or below")
+		return time.Time{}, "", fmt.Errorf("duration time is zero or below")
 	}
 	due = now.Add(dur)
 	return due, text, nil

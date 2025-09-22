@@ -40,6 +40,20 @@ func TestParseAdd(t *testing.T) {
 			args:    "0m task",
 			wantErr: true,
 		},
+		{
+			name:     "day_check",
+			args:     "24h daycheck test",
+			wantText: "daycheck test",
+			wantDue:  now.Add(24 * time.Hour),
+			wantErr:  false,
+		},
+		{
+			name:     "1m30s",
+			args:     "1m30s go home",
+			wantText: "go home",
+			wantDue:  now.Add(1*time.Minute + 30*time.Second),
+			wantErr:  false,
+		},
 	}
 
 	for _, tt := range tests {

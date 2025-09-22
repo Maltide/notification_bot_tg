@@ -38,6 +38,7 @@ func main() {
 	log.Info("User's tasks:", tasks1)
 
 	ms.DeleteTask(context.Background(), 1, 1)
+
 	tasks2, err := ms.ListTasks(context.Background(), 1)
 	log.Info("User's tasks:", tasks2)
 }
