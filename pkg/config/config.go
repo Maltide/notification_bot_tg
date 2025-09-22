@@ -16,7 +16,7 @@ func LoadConfig() (Config, error) {
 		LogLevel: os.Getenv("LOG_LEVEL"),
 	}
 	if cfg.TGToken == "" || cfg.LogLevel == "" {
-		return Config{}, fmt.Errorf("Вот и все - приехали!!!")
+		return Config{}, fmt.Errorf("empty env")
 	}
 	return cfg, nil
 }
