@@ -15,7 +15,7 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 	ms.Logger.Debugf("Defining taskID: %v", ms.nextID)
 	t.ID = ms.nextID
 
-	ms.Logger.Debugf("Create map for user with tasks.")
+	ms.Logger.Debugf("Creating map for user with tasks.")
 	if ms.Data[t.UserID] == nil {
 		newmap := make(map[int64]types.Task)
 		ms.Data[t.UserID] = newmap
@@ -39,7 +39,7 @@ func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Tas
 		out = append(out, t)
 		ms.Logger.Debugf("Task № %v just added to list", t.ID)
 	}
-	ms.Logger.Debugf("Done. At now, we returning final out list")
+	ms.Logger.Debugf("Done. At now, we returning final out list %v", out)
 	return out, nil
 }
 func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, id int64) error {
