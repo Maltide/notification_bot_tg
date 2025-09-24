@@ -21,5 +21,19 @@ func FindSmallestInt(slice []int) int {
 	//   - slice[3] = 1, 1 < 3, обновляем smallest = 1
 	//   - slice[4] = 9, 9 > 1, не обновляем
 	//   - Возвращаем 1 (это slice[3])
-	return 0
+	if len(slice) == 0 {
+		return 0
+	}
+	var smallest int
+
+	smallest = slice[0]
+
+	for i := range slice {
+
+		if slice[i] < smallest {
+			smallest = slice[i]
+		}
+	}
+
+	return smallest
 }

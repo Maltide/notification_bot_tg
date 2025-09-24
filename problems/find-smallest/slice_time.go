@@ -18,5 +18,16 @@ func FindSmallestTime(slice []time.Time) time.Time {
 	//
 	// Пример для слайса с временами 12:00 и 10:00:
 	//   - Возвращаем 10:00, так как это самое раннее время в слайсе
-	return time.Time{}
+	if len(slice) == 0 {
+		return time.Time{}
+	}
+	minTime := slice[0]
+
+	for i := range slice[1:] {
+		if slice[i].Before(minTime) {
+			minTime = slice[i]
+		}
+	}
+
+	return minTime
 }
