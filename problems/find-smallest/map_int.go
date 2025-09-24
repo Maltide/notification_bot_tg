@@ -1,5 +1,7 @@
 package problems
 
+import "math"
+
 func FindSmallestIntInMap(m map[int]int) int {
 	// Эта функция находит наименьшее значение в мапе целых чисел.
 	//
@@ -17,5 +19,14 @@ func FindSmallestIntInMap(m map[int]int) int {
 	//
 	// Пример для мапы map[int]int{1: 10, 2: 5, 3: 15}:
 	//   - Возвращаем 5, так как это наименьшее значение в мапе
-	return 0
+	if len(m) == 0 {
+		return 0
+	}
+	var minval int = math.MaxInt
+	for _, val := range m {
+		if val < minval {
+			minval = val
+		}
+	}
+	return minval
 }
