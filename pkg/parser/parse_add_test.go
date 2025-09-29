@@ -45,7 +45,7 @@ func TestParseAdd(t *testing.T) {
 		},
 		{
 			name:      "day_check",
-			userinput: "30.09.25 11:10 daycheck test",
+			userinput: "30.09.25 11:10                daycheck test", // + whitespace check
 			wantText:  "daycheck test",
 			wantDue:   time.Date(2025, 9, 30, 11, 10, 0, 0, Moscow_current_time),
 			wantErr:   false,

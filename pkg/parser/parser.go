@@ -19,7 +19,7 @@ func (tp *TimeParser) ParseAddTask(userinput string, now time.Time) (due time.Ti
 		return time.Time{}, "", fmt.Errorf("Заметка отсутствует")
 	}
 
-	shards := strings.SplitN(userinput, " ", 3)
+	shards := strings.Fields(userinput)
 	if len(shards) < 3 {
 		return time.Time{}, "", fmt.Errorf("Нужен формат именно такой: 12.11.25 15:05 <Сходить в магазин>")
 	}
@@ -35,7 +35,7 @@ func (tp *TimeParser) ParseAddTask(userinput string, now time.Time) (due time.Ti
 		return time.Time{}, "", fmt.Errorf("Вы пытаетесь ввести прошедшее время")
 	}
 
-	text = shards[2]
+	text = strings.Join(shards[:2], " ")
 
 	return due, text, nil
 }
