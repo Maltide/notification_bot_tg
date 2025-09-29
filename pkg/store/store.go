@@ -34,6 +34,9 @@ func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Tas
 	ms.Logger.Debugf("Give all № %v user's tasks.", userID)
 	out := make([]types.Task, 0, len(ms.Data[userID]))
 
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
 	ms.Logger.Debugf("Take tasks from data and fill the var out to give this var to the user")
 	for _, t := range ms.Data[userID] {
 		out = append(out, t)
