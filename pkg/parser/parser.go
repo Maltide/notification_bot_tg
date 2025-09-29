@@ -10,23 +10,24 @@ func NewTimeParser() *TimeParser {
 	return &TimeParser{}
 }
 
-func (tp *TimeParser) ParseAddTask(args string, now time.Time) (due time.Time, text string, err error) {
-	if strings.TrimSpace(args) == "" {
-		return time.Time{}, "", fmt.Errorf("no task yet")
+func (tp *TimeParser) ParseAddTask(userinput string) (due time.Time, text string, err error) {
+	if strings.TrimSpace(userinput) == "" {
+		return time.Time{}, "", fmt.Errorf("Заметка отсутствует")
 	}
 
-	i := strings.Index(args, " ")
-	if i == -1 {
-		return time.Time{}, "", fmt.Errorf("duration and text are not created")
+	shards := strings.SplitN(userinput, " ", 3)
+	if len(shards) < 3 {
+		return time.Time{}, "", fmt.Errorf("Нужен формат именно такой: DD.MM.YY HH:MM <text>")
 	}
 
-	durationStr := args[:i]
-	text = strings.TrimSpace(args[i+1:])
+	notif_time := shards[0] + " " + shards[1]
 
-	dur, err := time.ParseDuration(durationStr)
-	if err != nil || dur <= 0 {
-		return time.Time{}, "", fmt.Errorf("duration time is zero or below")
+	due, err = time.ParseInLocation(userinput, notif_time, time.Local)
+	if err != nil {
+		return time.Time{}, "", fmt.Errorf("Неправильный формат даты или времени")
 	}
-	due = now.Add(dur)
+
+	text = shards[2]
+
 	return due, text, nil
 }
