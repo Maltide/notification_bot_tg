@@ -16,6 +16,8 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 	ms.Logger.Debugf("Executing CreateTask on task %v", t)
 
 	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
 	ms.Logger.Debugf("Mutex was locked")
 
 	ms.Logger.Debugf("Defining taskID: %v", ms.nextID)
@@ -30,7 +32,7 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 	ms.nextID++
 	ms.Logger.Debugf("Incrementating taskID. Now is %v", ms.nextID)
 
-	ms.mu.Unlock() // нужно ли мьютекс перенести в defer чтобы он return захватывал?
+	// ms.mu.Unlock() // нужно ли мьютекс перенести в defer чтобы он return захватывал?
 	ms.Logger.Debugf("Mutex was unlocked")
 
 	ms.Logger.Debugf("Returning structure t for user %v, text is %s", t.UserID, t.Text)
@@ -55,12 +57,21 @@ func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, id int64) error {
 	ms.Logger.Debugf("Deleting №%v user's task №%v", userID, id)
 
 	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
 	ms.Logger.Debugf("Mutex was locked")
 
-	delete(ms.Data[userID], id)
+	tasks, ok := ms.Data[userID]
+	if !ok {
+		return fmt.Errorf("not found any task")
+	}
+	if _, ok := tasks[id]; !ok {
+		return fmt.Errorf("task %d not found", id)
+	}
+
+	delete(tasks, id)
 	ms.Logger.Debugf("Task was deleted")
 
-	ms.mu.Unlock()
 	ms.Logger.Debugf("Mutex was unlocked")
 
 	return nil
