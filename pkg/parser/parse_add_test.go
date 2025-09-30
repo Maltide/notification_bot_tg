@@ -9,7 +9,7 @@ func TestParseAdd(t *testing.T) {
 
 	now := time.Date(2025, 9, 29, 11, 00, 0, 0, Moscow_current_time)
 
-	parser := NewTimeParser()
+	parser := NewTimeParser() // logging - later...
 
 	tests := []struct {
 		name, userinput, wantText string

@@ -2,11 +2,17 @@ package store
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/Maltide/notification_bot_tg/pkg/types"
 )
 
 func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task, error) {
+	if strings.TrimSpace(t.Text) == "" {
+		return types.Task{}, fmt.Errorf("No text")
+	}
+
 	ms.Logger.Debugf("Executing CreateTask on task %v", t)
 
 	ms.mu.Lock()
@@ -24,7 +30,7 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 	ms.nextID++
 	ms.Logger.Debugf("Incrementating taskID. Now is %v", ms.nextID)
 
-	ms.mu.Unlock()
+	ms.mu.Unlock() // нужно ли мьютекс перенести в defer чтобы он return захватывал?
 	ms.Logger.Debugf("Mutex was unlocked")
 
 	ms.Logger.Debugf("Returning structure t for user %v, text is %s", t.UserID, t.Text)
