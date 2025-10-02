@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Maltide/notification_bot_tg/pkg/types"
 )
@@ -11,6 +12,10 @@ import (
 func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task, error) {
 	if strings.TrimSpace(t.Text) == "" {
 		return types.Task{}, fmt.Errorf("No text")
+	}
+
+	if t.DueAt.Before(time.Now().Local()) || t.DueAt.IsZero() {
+		return types.Task{}, fmt.Errorf("Past time")
 	}
 
 	ms.Logger.Debugf("Executing CreateTask on task %v", t)

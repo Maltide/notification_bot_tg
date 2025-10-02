@@ -2,55 +2,51 @@ package store
 
 import (
 	"context"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/Maltide/notification_bot_tg/pkg/types"
 	"go.uber.org/zap"
 )
 
 func TestCreateTask(t *testing.T) {
-	store := &MemoryStore{Data: make(map[int64]map[int64]types.Task), Logger: zap.NewNop().Sugar(), nextID: 1}
+	now := time.Now()
 
-	task := types.Task{UserID: 1, Text: "test"}
-
-	created, err := store.CreateTask(context.Background(), task)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	tests := []struct {
+		name    string
+		in      types.Task
+		wantErr bool
+	}{
+		{"past", types.Task{UserID: 1, Text: "x", DueAt: now.Add(-time.Minute)}, true},
+		{"future", types.Task{UserID: 1, Text: "x", DueAt: now.Add(time.Minute)}, false},
+		{"empty_text", types.Task{UserID: 1, Text: "   ", DueAt: now.Add(time.Minute)}, true},
 	}
 
-	if created.ID == 0 {
-		t.Errorf("expected non-zero ID, got %d", created.ID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := &MemoryStore{
+				Data:   make(map[int64]map[int64]types.Task),
+				Logger: zap.NewNop().Sugar(),
+				nextID: 1,
+			}
+
+			got, err := store.CreateTask(context.Background(), tt.in)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("want error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+			if got.ID == 0 {
+				t.Fatalf("want non-zero ID")
+			}
+			if got.Text != tt.in.Text {
+				t.Fatalf("text mismatch: %q vs %q", got.Text, tt.in.Text)
+			}
+		})
 	}
-
-	if created.Text != task.Text {
-		t.Errorf("expected text %q, got %q", task.Text, created.Text)
-	}
-	if strings.TrimSpace(created.Text) == "" {
-		t.Error("No text")
-	}
-
-	tasks, _ := store.ListTasks(context.Background(), task.UserID)
-	if len(tasks) != 1 {
-		t.Errorf("expected 1 task, got %d", len(tasks))
-	}
-
-	t.Run("empty text", func(t *testing.T) {
-		store := &MemoryStore{Data: make(map[int64]map[int64]types.Task), Logger: zap.NewNop().Sugar(), nextID: 1}
-
-		snap := store.nextID
-
-		_, err := store.CreateTask(context.Background(), types.Task{UserID: 1, Text: ""})
-		if err == nil {
-			t.Fatal("want error for empty text")
-		}
-
-		tasks, _ := store.ListTasks(context.Background(), 1)
-		if len(tasks) != 0 {
-			t.Fatalf("want 0 tasks, got %d", len(tasks))
-		}
-		if store.nextID != snap {
-			t.Fatalf("nextID changed: %d -> %d", snap, store.nextID)
-		}
-	})
 }

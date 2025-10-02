@@ -27,5 +27,5 @@ func (ms *MemoryStore) NextTask() (types.Task, error) {
 		}
 	}
 
-	return types.Task{}, nil
-}
+	return nearTask, nil // как будем сравнивать этот neartask с новыми входящими заметками ?
+} // O(n^2)
