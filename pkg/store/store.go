@@ -68,13 +68,16 @@ func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, id int64) error {
 
 	tasks, ok := ms.Data[userID]
 	if !ok {
-		return fmt.Errorf("not found any task")
+		return fmt.Errorf("user not found")
 	}
 	if _, ok := tasks[id]; !ok {
 		return fmt.Errorf("task %d not found", id)
 	}
 
 	delete(tasks, id)
+	if len(tasks) == 0 {
+		delete(ms.Data, userID)
+	}
 	ms.Logger.Debugf("Task was deleted")
 
 	ms.Logger.Debugf("Mutex was unlocked")
