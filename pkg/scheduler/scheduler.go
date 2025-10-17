@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/Maltide/notification_bot_tg/pkg/types"
@@ -28,36 +29,89 @@ type TimerScheduler struct {
 	Notify NotifyFunc         // функция доставки уведомлений (Telegram, лог и т.п.).
 	Logger *zap.SugaredLogger // общий логгер для отладки.
 
-	refreshCh chan struct{}    // канал сигналов о том, что расписание изменилось.
-	timer     *time.Timer      // активный таймер до ближайшей задачи.
-	now       func() time.Time // точка расширения для тестов (можно подменить clock).
+	refreshCh    chan struct{}    // канал сигналов о том, что расписание изменилось.
+	timer        *time.Timer      // активный таймер до ближайшей задачи.
+	now          func() time.Time // точка расширения для тестов (можно подменить clock).
+	current_task types.Task
+	wg           sync.WaitGroup
+	ctx          context.Context
+	cancel       context.CancelFunc
 	// TODO: добавить канал остановки и sync.WaitGroup для graceful shutdown на следующих этапах.
 }
 
 // NewTimerScheduler подготавливает структуру и создаёт вспомогательные каналы.
 // TODO: добавить параметры конфигурации (буфер канала, дефолтные таймауты) после первых прототипов.
 func NewTimerScheduler(store types.Store, notify NotifyFunc, logger *zap.SugaredLogger) *TimerScheduler {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &TimerScheduler{
-		Store:     store,
-		Notify:    notify,
-		Logger:    logger,
-		refreshCh: make(chan struct{}, 1),
-		now:       time.Now,
+		Store:        store,
+		Notify:       notify,
+		Logger:       logger,
+		refreshCh:    make(chan struct{}, 1),
+		now:          time.Now,
+		current_task: types.Task{},
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 }
 
 // Start запускает главный цикл обработки напоминаний. Реальную логику студент добавит позже.
 func (s *TimerScheduler) Start(ctx context.Context) {
 	// TODO: реализовать цикл: получить NextTask, запустить таймер, ждать либо refresh, либо контекст.
+	for {
+		current_task, err := s.Store.NextTask(ctx)
+		if err != nil {
+			s.Logger.Error()
+			continue
+		}
+		s.current_task = current_task
+
+		if s.current_task.DueAt.IsZero() {
+			s.timer = time.NewTimer(time.Second * 5)
+		} else {
+			s.timer = time.NewTimer(time.Until(s.current_task.DueAt))
+		}
+
+		select {
+		case <-s.timer.C:
+			if s.current_task.UserID != 0 {
+				s.Notify(ctx, s.current_task)
+				s.timer.Stop()
+				s.current_task, err = s.Store.NextTask(ctx)
+				if s.current_task.DueAt.IsZero() {
+					s.timer = time.NewTimer(time.Second * 5)
+				} else {
+					s.timer = time.NewTimer(time.Until(s.current_task.DueAt))
+				}
+			}
+		case <-s.refreshCh:
+			s.current_task, err = s.Store.NextTask(ctx)
+			s.timer.Stop()
+			if s.current_task.DueAt.IsZero() {
+				s.timer = time.NewTimer(time.Second * 5)
+			} else {
+				s.timer = time.NewTimer(time.Until(s.current_task.DueAt))
+			}
+		case <-ctx.Done():
+			if !s.timer.Stop() {
+				s.Logger.Error("timer didn't stop")
+			}
+			s.wg.Done()
+			s.Logger.Info("gorutine was done")
+		}
+	}
 }
 
 // Refresh отправляет сигнал в refreshCh, чтобы пересчитать ближайшее напоминание.
 func (s *TimerScheduler) Refresh() {
+	s.refreshCh <- struct{}{}
 	// TODO: отправить struct{} в refreshCh с защитой от переполнения буфера.
 }
 
 // Stop завершает работу планировщика.
 func (s *TimerScheduler) Stop(ctx context.Context) error {
+	s.cancel()
+
 	// TODO: корректно остановить таймер и дождаться завершения горутины (graceful shutdown позже).
 	return nil
 }
