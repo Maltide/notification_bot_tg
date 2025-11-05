@@ -54,7 +54,7 @@ func TestNextTask(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.store.NextTask(context.Background(), tt.in)
+			got, err := tt.store.NextTask(context.Background())
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("expected err=%v, got %v", tt.wantErr, err)
 			}

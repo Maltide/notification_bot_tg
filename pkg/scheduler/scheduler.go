@@ -59,42 +59,25 @@ func NewTimerScheduler(store types.Store, notify NotifyFunc, logger *zap.Sugared
 func (s *TimerScheduler) Start(ctx context.Context) {
 	// TODO: реализовать цикл: получить NextTask, запустить таймер, ждать либо refresh, либо контекст.
 	for {
-		current_task, err := s.Store.NextTask(ctx)
-		if err != nil {
-			s.Logger.Error()
-			continue
-		}
-		s.current_task = current_task
-
-		if s.current_task.DueAt.IsZero() {
-			s.timer = time.NewTimer(time.Second * 5)
-		} else {
-			s.timer = time.NewTimer(time.Until(s.current_task.DueAt))
-		}
-
 		select {
 		case <-s.timer.C:
 			if s.current_task.UserID != 0 {
 				s.Notify(ctx, s.current_task)
 				s.timer.Stop()
-				s.current_task, err = s.Store.NextTask(ctx)
-				if s.current_task.DueAt.IsZero() {
-					s.timer = time.NewTimer(time.Second * 5)
-				} else {
-					s.timer = time.NewTimer(time.Until(s.current_task.DueAt))
-				}
+				s.refreshCh <- struct{}{} // give signal to refreshCh => update timer to new task if it exists
 			}
 		case <-s.refreshCh:
-			s.current_task, err = s.Store.NextTask(ctx)
 			s.timer.Stop()
-			if s.current_task.DueAt.IsZero() {
-				s.timer = time.NewTimer(time.Second * 5)
-			} else {
-				s.timer = time.NewTimer(time.Until(s.current_task.DueAt))
+			newTask, err := s.Store.NextTask(ctx) // searching for near task
+			if err != nil {
+				s.Logger.Warn("NextTask error", zap.Error(err))
+				continue
 			}
+			s.current_task = newTask // update current_task because this var need for notify users
+			s.timer = time.NewTimer(time.Until(newTask.DueAt))
 		case <-ctx.Done():
 			if !s.timer.Stop() {
-				s.Logger.Error("timer didn't stop")
+				s.Logger.Debug("timer already stopped")
 			}
 			s.wg.Done()
 			s.Logger.Info("gorutine was done")
@@ -103,7 +86,7 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 }
 
 // Refresh отправляет сигнал в refreshCh, чтобы пересчитать ближайшее напоминание.
-func (s *TimerScheduler) Refresh() {
+func (s *TimerScheduler) Refresh() { //добавить это в add,del,upd функции
 	s.refreshCh <- struct{}{}
 	// TODO: отправить struct{} в refreshCh с защитой от переполнения буфера.
 }
