@@ -20,6 +20,8 @@ func TestCreateTask(t *testing.T) {
 		{"past", types.Task{UserID: 1, Text: "x", DueAt: now.Add(-time.Minute)}, true},
 		{"future", types.Task{UserID: 1, Text: "x", DueAt: now.Add(time.Minute)}, false},
 		{"empty_text", types.Task{UserID: 1, Text: "   ", DueAt: now.Add(time.Minute)}, true},
+		{"current time", types.Task{UserID: 1, Text: "y", DueAt: time.Now()}, true},
+		{"empty time", types.Task{UserID: 1, Text: "y", DueAt: time.Time{}}, true},
 	}
 
 	for _, tt := range tests {

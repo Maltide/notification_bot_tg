@@ -20,9 +20,11 @@ func (ms *MemoryStore) NextTask(ctx context.Context) (types.Task, error) {
 		now := time.Now()
 		for _, task := range val {
 			if task.DueAt.Before(now) {
+				ms.Logger.Warn("find task in the past")
 				continue
 			}
 			if task.DueAt.IsZero() {
+				ms.Logger.Warn("find task with zero time")
 				continue
 			}
 			if !copied {
@@ -38,6 +40,6 @@ func (ms *MemoryStore) NextTask(ctx context.Context) (types.Task, error) {
 	if !copied {
 		return types.Task{}, fmt.Errorf("no valid tasks")
 	}
-
-	return nearTask, nil // как будем сравнивать этот neartask с новыми входящими заметками ?
-} // O(n^2)
+	ms.Logger.Infof("near task to send:%v\n", nearTask)
+	return nearTask, nil
+}

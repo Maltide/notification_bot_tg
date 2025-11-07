@@ -7,15 +7,23 @@ import (
 	"time"
 
 	"github.com/Maltide/notification_bot_tg/pkg/types"
+	"go.uber.org/zap"
 )
 
+func NewMemoryStore(logger *zap.SugaredLogger) *MemoryStore {
+	return &MemoryStore{
+		Logger: logger,
+		Data:   make(map[int64]map[int64]types.Task),
+		nextID: 1,
+	}
+}
 func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task, error) {
 	if strings.TrimSpace(t.Text) == "" {
-		return types.Task{}, fmt.Errorf("No text")
+		return types.Task{}, fmt.Errorf("no text")
 	}
 
 	if t.DueAt.Before(time.Now().Local()) || t.DueAt.IsZero() {
-		return types.Task{}, fmt.Errorf("Past time")
+		return types.Task{}, fmt.Errorf("past time")
 	}
 
 	ms.Logger.Debugf("Executing CreateTask on task %v", t)
@@ -37,12 +45,12 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 	ms.nextID++
 	ms.Logger.Debugf("Incrementating taskID. Now is %v", ms.nextID)
 
-	// ms.mu.Unlock() // нужно ли мьютекс перенести в defer чтобы он return захватывал?
 	ms.Logger.Debugf("Mutex was unlocked")
 
 	ms.Logger.Debugf("Returning structure t for user %v, text is %s", t.UserID, t.Text)
 	return t, nil
 }
+
 func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Task, error) {
 	ms.Logger.Debugf("Give all № %v user's tasks.", userID)
 	out := make([]types.Task, 0, len(ms.Data[userID]))
@@ -58,6 +66,7 @@ func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Tas
 	ms.Logger.Debugf("Done. At now, we returning final out list")
 	return out, nil
 }
+
 func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, id int64) error {
 	ms.Logger.Debugf("Deleting №%v user's task №%v", userID, id)
 

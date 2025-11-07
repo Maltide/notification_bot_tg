@@ -14,25 +14,24 @@ func NewTimeParser() *TimeParser {
 	return &TimeParser{}
 }
 
-func (tp *TimeParser) ParseAddTask(userinput string, now time.Time) (due time.Time, text string, err error) {
+func (tp *TimeParser) ParseAddTask(userinput string) (due time.Time, text string, err error) {
 	if strings.TrimSpace(userinput) == "" {
-		return time.Time{}, "", fmt.Errorf("Заметка отсутствует")
+		return time.Time{}, "", fmt.Errorf("заметка отсутствует")
 	}
 
 	shards := strings.Fields(userinput)
 	if len(shards) < 3 {
-		return time.Time{}, "", fmt.Errorf("Нужен формат именно такой: 12.11.25 15:05 <Сходить в магазин>")
+		return time.Time{}, "", fmt.Errorf("нужен формат именно такой: 12.11.25 15:05 Сходить в магазин")
 	}
 
 	notif_time := strings.ReplaceAll(shards[0]+" "+shards[1], ",", "")
-
 	due, err = time.ParseInLocation(inputlayout, notif_time, Moscow_current_time)
 	if err != nil {
-		return time.Time{}, "", fmt.Errorf("Неправильный формат даты или времени")
+		return time.Time{}, "", fmt.Errorf("неправильный формат даты или времени")
 	}
 
-	if due.Before(now) {
-		return time.Time{}, "", fmt.Errorf("Вы пытаетесь ввести прошедшее время")
+	if due.Before(time.Now()) {
+		return time.Time{}, "", fmt.Errorf("пытаетесь ввести прошедшее время")
 	}
 
 	text = strings.Join(shards[:2], " ")
