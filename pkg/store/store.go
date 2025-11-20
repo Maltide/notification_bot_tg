@@ -22,7 +22,7 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 		return types.Task{}, fmt.Errorf("no text")
 	}
 
-	if t.DueAt.Before(time.Now().Local()) || t.DueAt.IsZero() {
+	if t.DueAt.Before(time.Now().Local()) { // || t.DueAt.IsZero() needed?
 		return types.Task{}, fmt.Errorf("past time")
 	}
 
@@ -75,12 +75,26 @@ func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, id int64) error {
 
 	ms.Logger.Debugf("Mutex was locked")
 
+<<<<<<< Updated upstream
 	tasks, ok := ms.Data[userID]
 	if !ok {
 		return fmt.Errorf("user not found")
 	}
 	if _, ok := tasks[id]; !ok {
 		return fmt.Errorf("task %d not found", id)
+=======
+	for userID, tasks := range ms.Data {
+		for taskID := range tasks {
+			if taskID == id {
+				delete(ms.Data[userID], taskID)
+				if len(ms.Data[userID]) == 0 {
+					delete(ms.Data, userID)
+				}
+				ms.Logger.Debugf("Task was deleted")
+				return nil
+			}
+		}
+>>>>>>> Stashed changes
 	}
 
 	delete(tasks, id)

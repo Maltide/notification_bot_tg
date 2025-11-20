@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-var Moscow_current_time, _ = time.LoadLocation("Europe/Moscow")
+var moscow_current_time, _ = time.LoadLocation("Europe/Moscow")
 
-const inputlayout = "02.01.06 15:04"
+const dateTimelayout = "02.01.06 15:04"
 
 func NewTimeParser() *TimeParser {
 	return &TimeParser{}
@@ -25,7 +25,7 @@ func (tp *TimeParser) ParseAddTask(userinput string) (due time.Time, text string
 	}
 
 	notif_time := strings.ReplaceAll(shards[0]+" "+shards[1], ",", "")
-	due, err = time.ParseInLocation(inputlayout, notif_time, Moscow_current_time)
+	due, err = time.ParseInLocation(dateTimelayout, notif_time, moscow_current_time)
 	if err != nil {
 		return time.Time{}, "", fmt.Errorf("неправильный формат даты или времени")
 	}
@@ -34,7 +34,7 @@ func (tp *TimeParser) ParseAddTask(userinput string) (due time.Time, text string
 		return time.Time{}, "", fmt.Errorf("пытаетесь ввести прошедшее время")
 	}
 
-	text = strings.Join(shards[:2], " ")
+	text = strings.Join(shards[2:], " ")
 
 	return due, text, nil
 }

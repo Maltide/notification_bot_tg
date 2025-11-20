@@ -20,7 +20,7 @@ func TestParseAdd(t *testing.T) {
 			name:      "ok simple",
 			userinput: "29.09.25 11:10 drink water",
 			wantText:  "drink water",
-			wantDue:   time.Date(2025, 9, 29, 11, 10, 0, 0, Moscow_current_time),
+			wantDue:   time.Date(2025, 9, 29, 11, 10, 0, 0, moscow_current_time),
 			wantErr:   false,
 		},
 		{
@@ -47,14 +47,14 @@ func TestParseAdd(t *testing.T) {
 			name:      "day_check",
 			userinput: "30.09.25 11:10                daycheck test", // + whitespace check
 			wantText:  "daycheck test",
-			wantDue:   time.Date(2025, 9, 30, 11, 10, 0, 0, Moscow_current_time),
+			wantDue:   time.Date(2025, 9, 30, 11, 10, 0, 0, moscow_current_time),
 			wantErr:   false,
 		},
 		{
 			name:      "1m",
 			userinput: "29.09.25 11:01 go home",
 			wantText:  "go home",
-			wantDue:   time.Date(2025, 9, 29, 11, 01, 0, 0, Moscow_current_time),
+			wantDue:   time.Date(2025, 9, 29, 11, 01, 0, 0, moscow_current_time),
 			wantErr:   false,
 		},
 	}

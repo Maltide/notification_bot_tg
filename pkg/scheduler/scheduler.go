@@ -76,12 +76,16 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 			}
 			newTask, err := s.Store.NextTask(ctx) // searching for near task
 			if err != nil {
-				s.Logger.Warn("NextTask error", zap.Error(err))
+				s.Logger.Warn("NextTask error:", zap.Error(err))
 				continue
 			}
 			s.current_task = newTask // update current_task because this var need for notify users
 			s.timer = time.NewTimer(time.Until(newTask.DueAt))
 		case <-s.ctx.Done():
+<<<<<<< Updated upstream
+=======
+			s.Logger.Info("context done case")
+>>>>>>> Stashed changes
 			if !s.timer.Stop() {
 				s.Logger.Debug("timer already stopped")
 			}
