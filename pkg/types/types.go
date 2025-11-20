@@ -19,5 +19,5 @@ type Store interface {
 }
 
 type Parser interface {
-	ParseAddTask(args string, now time.Time) (due time.Time, text string, err error)
+	ParseAddTask(userargs []string) (due time.Time, text string, err error)
 }

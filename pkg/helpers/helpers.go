@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
-	"time"
 
+	"github.com/Maltide/notification_bot_tg/pkg/messages"
 	"github.com/Maltide/notification_bot_tg/pkg/scheduler"
 	"github.com/Maltide/notification_bot_tg/pkg/types"
 	"go.uber.org/zap"
@@ -16,7 +15,7 @@ type Handler struct {
 	store     types.Store
 	scheduler *scheduler.TimerScheduler
 	log       *zap.SugaredLogger
-	parser    *types.Parser
+	parser    types.Parser
 }
 
 func NewHandler(store types.Store, scheduler *scheduler.TimerScheduler, log *zap.SugaredLogger, parser types.Parser) *Handler {
@@ -24,7 +23,7 @@ func NewHandler(store types.Store, scheduler *scheduler.TimerScheduler, log *zap
 		store:     store,
 		scheduler: scheduler,
 		log:       log,
-		parser:    &parser,
+		parser:    parser,
 	}
 }
 
@@ -35,7 +34,7 @@ func (h *Handler) HandleCommand(ctx context.Context, userID, chatID int64, comma
 	case "/list":
 		return h.handleList(ctx, userID)
 	case "/delete":
-		return h.handleDelete(ctx, args)
+		return h.handleDelete(ctx, userID, args)
 	case "/help":
 		return h.handleHelp()
 	default:
@@ -48,13 +47,16 @@ func (h *Handler) handleAdd(ctx context.Context, userID, chatID int64, args []st
 		return "Usage: /add <duration> <task text>\nExample: /add 1h30m Buy groceries"
 	}
 
-	parser.ParseAdd()
+	due, taskText, err := h.parser.ParseAddTask(args)
+	if err != nil {
+		return fmt.Sprintf("Failed to parse task: %v", err)
+	}
 
 	task := types.Task{
 		UserID: userID,
 		ChatID: chatID,
 		Text:   taskText,
-		DueAt:  time.Now().Add(duration),
+		DueAt:  due,
 	}
 
 	createdTask, err := h.store.CreateTask(ctx, task)
@@ -64,7 +66,7 @@ func (h *Handler) handleAdd(ctx context.Context, userID, chatID int64, args []st
 	}
 
 	h.scheduler.Refresh()
-	return fmt.Sprintf("Task added successfully! ID: %d, Will notify you in %s", createdTask.ID, duration)
+	return messages.MsgAdd(createdTask.ID, due)
 }
 
 func (h *Handler) handleList(ctx context.Context, userID int64) string {
@@ -78,16 +80,10 @@ func (h *Handler) handleList(ctx context.Context, userID int64) string {
 		return "You have no pending tasks"
 	}
 
-	var sb strings.Builder
-	sb.WriteString("Your tasks:\n")
-	for _, task := range tasks {
-		timeUntil := time.Until(task.DueAt)
-		sb.WriteString(fmt.Sprintf("ID: %d | %s | Due in: %s\n", task.ID, task.Text, timeUntil.Round(time.Second)))
-	}
-	return sb.String()
+	return messages.MsgList(tasks)
 }
 
-func (h *Handler) handleDelete(ctx context.Context, args []string) string {
+func (h *Handler) handleDelete(ctx context.Context, userID int64, args []string) string {
 	if len(args) < 1 {
 		return "Usage: /delete <task_id>"
 	}
@@ -97,13 +93,13 @@ func (h *Handler) handleDelete(ctx context.Context, args []string) string {
 		return "Invalid task ID"
 	}
 
-	if err := h.store.DeleteTask(ctx, taskID); err != nil {
+	if err := h.store.DeleteTask(ctx, userID, taskID); err != nil {
 		h.log.Errorf("Failed to delete task: %v", err)
 		return "Failed to delete task"
 	}
 
 	h.scheduler.Refresh()
-	return "Task deleted successfully"
+	return messages.MsgDelete()
 }
 
 func (h *Handler) handleHelp() string {

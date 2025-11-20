@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"strings"
 
 	helperpkg "github.com/Maltide/notification_bot_tg/pkg/helpers"
 	"github.com/Maltide/notification_bot_tg/pkg/types"
@@ -58,16 +59,13 @@ func (b *Bot) handleUpdate(ctx context.Context, upd tgbotapi.Update) {
 }
 
 func (b *Bot) handleCommand(ctx context.Context, msg *tgbotapi.Message) {
-	switch msg.Command() {
-	case "help":
-		b.replyHelp(ctx, msg)
-	case "list":
-		// TODO: добавить обработку списка когда появится store.
-	case "delete":
-		// TODO: добавить обработку удаления по ID.
-	default:
-		b.replyUnknown(ctx, msg)
-	}
+	command := "/" + msg.Command()
+	commandArgs := msg.CommandArguments()
+	args := strings.Fields(commandArgs)
+	response := b.cmdHandler.HandleCommand(ctx, msg.From.ID, msg.Chat.ID, command, args)
+
+	reply := tgbotapi.NewMessage(msg.Chat.ID, response)
+	b.sendMessage(reply.ChatID, reply.Text)
 }
 
 func (b *Bot) listenNotifications(ctx context.Context) {
@@ -75,7 +73,6 @@ func (b *Bot) listenNotifications(ctx context.Context) {
 		b.logger.Warn("notifyCh is nil, notifications listener is not started")
 		return
 	}
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -86,13 +83,17 @@ func (b *Bot) listenNotifications(ctx context.Context) {
 				b.logger.Infof("stop listenNotifications: notifyCh closed")
 				return
 			}
-
-			message := tgbotapi.NewMessage(task.ChatID, task.Text)
-			if _, err := b.api.Send(message); err != nil {
-				b.logger.Errorf("failed to send notification message: %v", err)
-			}
+			b.sendMessage(task.ChatID, task.Text)
 		}
 	}
+}
+
+func (b *Bot) sendMessage(chatID int64, text string) error {
+	message := tgbotapi.NewMessage(chatID, text)
+	if _, err := b.api.Send(message); err != nil {
+		b.logger.Errorf("failed to send message: %v", err)
+	}
+	return nil
 }
 
 // func (b *Bot) replyHelp(ctx context.Context, msg *tgbotapi.Message) {
