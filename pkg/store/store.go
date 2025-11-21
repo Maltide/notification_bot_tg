@@ -3,8 +3,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/Maltide/notification_bot_tg/pkg/types"
 	"go.uber.org/zap"
@@ -18,14 +16,6 @@ func NewMemoryStore(logger *zap.SugaredLogger) *MemoryStore {
 	}
 }
 func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task, error) {
-	if strings.TrimSpace(t.Text) == "" {
-		return types.Task{}, fmt.Errorf("no text")
-	}
-
-	if t.DueAt.Before(time.Now().Local()) { // || t.DueAt.IsZero() needed?
-		return types.Task{}, fmt.Errorf("past time")
-	}
-
 	ms.Logger.Debugf("Executing CreateTask on task %v", t)
 
 	ms.mu.Lock()
@@ -41,6 +31,8 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 		newmap := make(map[int64]types.Task)
 		ms.Data[t.UserID] = newmap
 	}
+	localID := int64(len(ms.Data[t.UserID]) + 1)
+	t.UserTaskID = localID
 	ms.Data[t.UserID][ms.nextID] = t
 	ms.nextID++
 	ms.Logger.Debugf("Incrementating taskID. Now is %v", ms.nextID)
@@ -52,6 +44,9 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 }
 
 func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Task, error) {
+	if len(ms.Data[userID]) == 0 {
+		return []types.Task{}, fmt.Errorf("you have no tasks")
+	}
 	ms.Logger.Debugf("Give all № %v user's tasks.", userID)
 	out := make([]types.Task, 0, len(ms.Data[userID]))
 
@@ -75,14 +70,13 @@ func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, id int64) error {
 
 	ms.Logger.Debugf("Mutex was locked")
 
-<<<<<<< Updated upstream
 	tasks, ok := ms.Data[userID]
 	if !ok {
 		return fmt.Errorf("user not found")
 	}
 	if _, ok := tasks[id]; !ok {
 		return fmt.Errorf("task %d not found", id)
-=======
+	}
 	for userID, tasks := range ms.Data {
 		for taskID := range tasks {
 			if taskID == id {
@@ -94,13 +88,8 @@ func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, id int64) error {
 				return nil
 			}
 		}
->>>>>>> Stashed changes
 	}
 
-	delete(tasks, id)
-	if len(tasks) == 0 {
-		delete(ms.Data, userID)
-	}
 	ms.Logger.Debugf("Task was deleted")
 
 	ms.Logger.Debugf("Mutex was unlocked")

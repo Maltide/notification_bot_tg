@@ -27,12 +27,10 @@ func (tp *TimeParser) ParseAddTask(userargs []string) (due time.Time, text strin
 	}
 
 	if due.Before(time.Now()) {
-		return time.Time{}, "", fmt.Errorf("пытаетесь ввести прошедшее время")
+		return time.Time{}, "", fmt.Errorf("попытка ввести прошедшее время")
 	}
 
 	text = strings.Join(userargs[2:], " ")
 
 	return due, text, nil
 }
-
-// 25.12.12 15:03 asdasdasdas

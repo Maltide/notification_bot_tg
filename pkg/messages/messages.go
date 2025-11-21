@@ -25,3 +25,11 @@ func MsgList(tasks []types.Task) string {
 	}
 	return sb.String()
 }
+
+func MsgHelp() string {
+	return `Available commands:
+/add <duration> <text> - Add a new task (e.g., /add 12.05.2025 15:05 Buy groceries)
+/list - List all your tasks
+/delete <id> - Delete a task by ID
+/help - Show this help message`
+}

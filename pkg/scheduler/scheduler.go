@@ -68,6 +68,7 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 			if s.current_task.UserID != 0 {
 				s.Notify(ctx, s.current_task)
 				s.timer.Stop()
+				s.Store.DeleteTask(ctx, s.current_task.UserID, s.current_task.ID)
 				s.Refresh() // give signal to refreshCh => update timer to new task if it exists
 			}
 		case <-s.refreshCh:
@@ -79,13 +80,15 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 				s.Logger.Warn("NextTask error:", zap.Error(err))
 				continue
 			}
+			if newTask.DueAt.Before(time.Now()) {
+				s.Notify(ctx, newTask)
+				s.Store.DeleteTask(ctx, newTask.UserID, newTask.ID)
+				continue
+			}
 			s.current_task = newTask // update current_task because this var need for notify users
 			s.timer = time.NewTimer(time.Until(newTask.DueAt))
 		case <-s.ctx.Done():
-<<<<<<< Updated upstream
-=======
 			s.Logger.Info("context done case")
->>>>>>> Stashed changes
 			if !s.timer.Stop() {
 				s.Logger.Debug("timer already stopped")
 			}

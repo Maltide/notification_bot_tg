@@ -20,7 +20,8 @@ type Bot struct {
 }
 
 // NewBot создаёт каркас бота с готовым клиентом.
-func NewBot(api *tgbotapi.BotAPI, logger *zap.SugaredLogger, cmdHandler *helperpkg.Handler, notifyCh <-chan types.Task) *Bot {
+func NewBot(api *tgbotapi.BotAPI, logger *zap.SugaredLogger, cmdHandler *helperpkg.Handler,
+	notifyCh <-chan types.Task) *Bot {
 	return &Bot{api: api, logger: logger, cmdHandler: cmdHandler, notifyCh: notifyCh}
 }
 
@@ -54,7 +55,7 @@ func (b *Bot) handleUpdate(ctx context.Context, upd tgbotapi.Update) {
 		b.handleCommand(ctx, upd.Message)
 		return
 	}
-
+	b.sendMessage(upd.Message.Chat.ID, "Use /help")
 	// TODO: здесь будет обработка обычных сообщений (создание напоминаний).
 }
 
@@ -63,7 +64,6 @@ func (b *Bot) handleCommand(ctx context.Context, msg *tgbotapi.Message) {
 	commandArgs := msg.CommandArguments()
 	args := strings.Fields(commandArgs)
 	response := b.cmdHandler.HandleCommand(ctx, msg.From.ID, msg.Chat.ID, command, args)
-
 	reply := tgbotapi.NewMessage(msg.Chat.ID, response)
 	b.sendMessage(reply.ChatID, reply.Text)
 }
@@ -84,6 +84,7 @@ func (b *Bot) listenNotifications(ctx context.Context) {
 				return
 			}
 			b.sendMessage(task.ChatID, task.Text)
+			b.cmdHandler.RefreshScheduler()
 		}
 	}
 }
@@ -95,21 +96,3 @@ func (b *Bot) sendMessage(chatID int64, text string) error {
 	}
 	return nil
 }
-
-// func (b *Bot) replyHelp(ctx context.Context, msg *tgbotapi.Message) {
-// 	helpText := "Привет! Отправь сообщение вида `10m позвонить маме`, чтобы создать напоминание. Доступные команды: /help, /list, /delete <id>."
-// 	// TODO: вынести шаблон текста в отдельный пакет/константу и добавить локализацию.
-// 	req := tgbotapi.NewMessage(msg.Chat.ID, helpText)
-// 	req.ParseMode = "Markdown"
-// 	if _, err := b.api.Send(req); err != nil {
-// 		b.logger.Errorf("failed to send help message: %v", err)
-// 	}
-// }
-
-// func (b *Bot) replyUnknown(ctx context.Context, msg *tgbotapi.Message) {
-// 	text := "Я не знаю эту команду. Используй /help, чтобы увидеть доступные команды."
-// 	req := tgbotapi.NewMessage(msg.Chat.ID, text)
-// 	if _, err := b.api.Send(req); err != nil {
-// 		b.logger.Errorf("failed to send unknown command reply: %v", err)
-// 	}
-// }

@@ -6,9 +6,9 @@ import (
 )
 
 type Task struct {
-	ID, UserID, ChatID int64
-	Text               string
-	DueAt              time.Time
+	ID, UserID, ChatID, UserTaskID int64
+	Text                           string
+	DueAt                          time.Time
 }
 
 type Store interface {
