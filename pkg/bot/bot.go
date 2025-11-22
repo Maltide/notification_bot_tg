@@ -84,7 +84,6 @@ func (b *Bot) listenNotifications(ctx context.Context) {
 				return
 			}
 			b.sendMessage(task.ChatID, task.Text)
-			b.cmdHandler.RefreshScheduler()
 		}
 	}
 }

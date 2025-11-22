@@ -55,34 +55,49 @@ func NewTimerScheduler(store types.Store, notify NotifyFunc, logger *zap.Sugared
 }
 
 // Start запускает главный цикл обработки напоминаний. Реальную логику студент добавит позже.
+
 func (s *TimerScheduler) Start(ctx context.Context) {
 	// TODO: реализовать цикл: получить NextTask, запустить таймер, ждать либо refresh, либо контекст.
 	if s.timer == nil { // this fake-timer need because of initialization(or we get panicked)
 		s.timer = time.NewTimer(time.Hour * 24 * 365)
 	}
+
 	s.wg.Add(1)
 	defer s.wg.Done()
+
 	for {
 		select {
+
 		case <-s.timer.C:
-			if s.current_task.UserID != 0 {
-				s.Notify(ctx, s.current_task)
-				s.timer.Stop()
-				s.Store.DeleteTask(ctx, s.current_task.UserID, s.current_task.ID)
-				s.Refresh() // give signal to refreshCh => update timer to new task if it exists
+			if s.current_task.UserID == 0 {
+				continue
 			}
+			// s.timer.Stop()
+			s.Notify(ctx, s.current_task)
+
+			s.Store.DeleteTask(ctx, s.current_task.UserID, s.current_task.ID)
+
+			s.Refresh() // give signal to refreshCh => update timer to new task if it exists
+
+			continue
 		case <-s.refreshCh:
 			if !s.timer.Stop() {
-				<-s.timer.C
+				select {
+				case <-s.timer.C:
+				default:
+				}
 			}
 			newTask, err := s.Store.NextTask(ctx) // searching for near task
 			if err != nil {
 				s.Logger.Warn("NextTask error:", zap.Error(err))
+				s.current_task = types.Task{}
+				s.timer = time.NewTimer(time.Hour * 24 * 365)
 				continue
 			}
 			if newTask.DueAt.Before(time.Now()) {
 				s.Notify(ctx, newTask)
 				s.Store.DeleteTask(ctx, newTask.UserID, newTask.ID)
+				s.Refresh()
 				continue
 			}
 			s.current_task = newTask // update current_task because this var need for notify users
@@ -90,7 +105,11 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 		case <-s.ctx.Done():
 			s.Logger.Info("context done case")
 			if !s.timer.Stop() {
-				s.Logger.Debug("timer already stopped")
+				select {
+				case <-s.timer.C:
+				default:
+				}
+				s.Logger.Debug("scheduler stopped")
 			}
 			s.Logger.Info("gorutine was done")
 			return
