@@ -67,7 +67,7 @@ func main() {
 
 	handler := helperpkg.NewHandler(ms, scheduler, log, parser)
 
-	bot := botpkg.NewBot(api, log, handler, notifyCh)
+	bot := botpkg.NewBot(api, log, handler, notifyCh, &cfg)
 
 	wg.Add(1)
 	go func() {

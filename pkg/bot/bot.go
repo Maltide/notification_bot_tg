@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Maltide/notification_bot_tg/pkg/config"
 	helperpkg "github.com/Maltide/notification_bot_tg/pkg/helpers"
 	"github.com/Maltide/notification_bot_tg/pkg/types"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -18,19 +19,20 @@ type Bot struct {
 	logger     *zap.SugaredLogger
 	cmdHandler *helperpkg.Handler
 	notifyCh   <-chan types.Task
+	config     *config.Config
 }
 
 // NewBot создаёт каркас бота с готовым клиентом.
 func NewBot(api *tgbotapi.BotAPI, logger *zap.SugaredLogger, cmdHandler *helperpkg.Handler,
-	notifyCh <-chan types.Task) *Bot {
-	return &Bot{api: api, logger: logger, cmdHandler: cmdHandler, notifyCh: notifyCh}
+	notifyCh <-chan types.Task, config *config.Config) *Bot {
+	return &Bot{api: api, logger: logger, cmdHandler: cmdHandler, notifyCh: notifyCh, config: config}
 }
 
 // Start запускает перехват апдейтов и реагирует хотя бы на /help.
 func (b *Bot) Start(ctx context.Context) error {
 	// TODO: вынести конфигурацию long polling в настройки.
 	updateCfg := tgbotapi.NewUpdate(0)
-	updateCfg.Timeout = 30
+	updateCfg.Timeout = b.config.TGTimeout
 
 	updateCh := make(chan tgbotapi.Update)
 
