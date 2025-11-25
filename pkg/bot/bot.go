@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"strings"
+	"time"
 
 	helperpkg "github.com/Maltide/notification_bot_tg/pkg/helpers"
 	"github.com/Maltide/notification_bot_tg/pkg/types"
@@ -31,13 +32,42 @@ func (b *Bot) Start(ctx context.Context) error {
 	updateCfg := tgbotapi.NewUpdate(0)
 	updateCfg.Timeout = 30
 
-	updates := b.api.GetUpdatesChan(updateCfg)
+	updateCh := make(chan tgbotapi.Update)
+
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			update, err := b.api.GetUpdates(updateCfg)
+			if err != nil {
+				b.logger.Error("update issue:", err)
+				continue
+			}
+
+			if len(update) == 0 {
+				time.Sleep(300 * time.Millisecond)
+				continue
+			}
+			for i := range update {
+				updateCh <- update[i]
+				lastupdateID := update[i].UpdateID
+				updateCfg.Offset = lastupdateID + 1
+			}
+		}
+	}(ctx)
+
 	go b.listenNotifications(ctx)
+
 	for {
 		select {
 		case <-ctx.Done():
+			close(updateCh)
 			return ctx.Err()
-		case upd, ok := <-updates:
+		case upd, ok := <-updateCh:
 			if !ok {
 				return nil
 			}

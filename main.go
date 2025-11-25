@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	botpkg "github.com/Maltide/notification_bot_tg/pkg/bot"
 	"github.com/Maltide/notification_bot_tg/pkg/config"
@@ -18,6 +20,9 @@ import (
 )
 
 func main() {
+	endCh := make(chan os.Signal, 1)
+	signal.Notify(endCh, syscall.SIGINT)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
@@ -70,5 +75,8 @@ func main() {
 		bot.Start(ctx)
 	}()
 
+	<-endCh
+	cancel()
+	scheduler.Stop()
 	wg.Wait()
 }

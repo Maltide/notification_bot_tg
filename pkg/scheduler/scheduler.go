@@ -33,15 +33,15 @@ type TimerScheduler struct {
 	now          func() time.Time   // точка расширения для тестов (можно подменить clock).
 	current_task types.Task
 	wg           sync.WaitGroup
-	ctx          context.Context
-	cancel       context.CancelFunc
+	// ctx          context.Context
+	// cancel       context.CancelFunc
 	// TODO: добавить канал остановки и sync.WaitGroup для graceful shutdown на следующих этапах. ????????7
 }
 
 // NewTimerScheduler подготавливает структуру и создаёт вспомогательные каналы.
 // TODO: добавить параметры конфигурации (буфер канала, дефолтные таймауты) после первых прототипов.
 func NewTimerScheduler(store types.Store, notify NotifyFunc, logger *zap.SugaredLogger) *TimerScheduler {
-	ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(context.Background())
 	return &TimerScheduler{
 		Store:        store,
 		Notify:       notify,
@@ -49,8 +49,8 @@ func NewTimerScheduler(store types.Store, notify NotifyFunc, logger *zap.Sugared
 		refreshCh:    make(chan struct{}, 1),
 		now:          time.Now,
 		current_task: types.Task{},
-		ctx:          ctx,
-		cancel:       cancel,
+		// ctx:          ctx,
+		// cancel:       cancel,
 	}
 }
 
@@ -102,7 +102,7 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 			}
 			s.current_task = newTask // update current_task because this var need for notify users
 			s.timer = time.NewTimer(time.Until(newTask.DueAt))
-		case <-s.ctx.Done():
+		case <-ctx.Done():
 			s.Logger.Info("context done case")
 			if !s.timer.Stop() {
 				select {
@@ -129,9 +129,8 @@ func (s *TimerScheduler) Refresh() { //use this after calling add,del,upd functi
 }
 
 // Stop завершает работу планировщика.
-func (s *TimerScheduler) Stop(ctx context.Context) error {
+func (s *TimerScheduler) Stop() error {
 	// TODO: корректно остановить таймер и дождаться завершения горутины (graceful shutdown позже).
-	s.cancel()
-	s.wg.Wait() //can be useful in the future?
+	s.timer.Stop()
 	return nil
 }
