@@ -75,35 +75,45 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 			// s.timer.Stop()
 			s.Notify(ctx, s.current_task)
 
-			s.Store.DeleteTask(ctx, s.current_task.UserID, s.current_task.ID)
+			s.Store.DeleteTask(ctx, s.current_task.UserID, s.current_task.UserTaskID)
 
 			s.Refresh() // give signal to refreshCh => update timer to new task if it exists
 
 			continue
+
 		case <-s.refreshCh:
+
 			if !s.timer.Stop() {
 				select {
 				case <-s.timer.C:
 				default:
 				}
 			}
+
 			newTask, err := s.Store.NextTask(ctx) // searching for near task
+
 			if err != nil {
 				s.Logger.Warn("NextTask error:", zap.Error(err))
 				s.current_task = types.Task{}
 				s.timer = time.NewTimer(time.Hour * 24 * 365)
 				continue
 			}
+
 			if newTask.DueAt.Before(time.Now()) {
 				s.Notify(ctx, newTask)
-				s.Store.DeleteTask(ctx, newTask.UserID, newTask.ID)
+				s.Store.DeleteTask(ctx, newTask.UserID, newTask.UserTaskID)
 				s.Refresh()
 				continue
 			}
+
 			s.current_task = newTask // update current_task because this var need for notify users
+
 			s.timer = time.NewTimer(time.Until(newTask.DueAt))
+
 		case <-ctx.Done():
+
 			s.Logger.Info("context done case")
+
 			if !s.timer.Stop() {
 				select {
 				case <-s.timer.C:
@@ -111,7 +121,9 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 				}
 				s.Logger.Debug("scheduler stopped")
 			}
+
 			s.Logger.Info("gorutine was done")
+
 			return
 		}
 	}

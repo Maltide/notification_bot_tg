@@ -21,7 +21,7 @@ func MsgList(tasks []types.Task) string {
 	sb.WriteString("Ваши заметки:\n")
 	for _, task := range tasks {
 		sb.WriteString(fmt.Sprintf("ID: %d | %s | Придет: %s в %s\n",
-			task.ID, task.Text, task.DueAt.Format("02.01.06"), task.DueAt.Format("15:04")))
+			task.UserTaskID, task.Text, task.DueAt.Format("02.01.06"), task.DueAt.Format("15:04")))
 	}
 	return sb.String()
 }

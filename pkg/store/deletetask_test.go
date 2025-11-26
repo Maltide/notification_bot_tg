@@ -13,7 +13,8 @@ func TestDeleteTask(t *testing.T) {
 		return &MemoryStore{Data: make(map[int64]map[int64]types.Task), Logger: zap.NewNop().Sugar(), nextID: 1}
 	}
 
-	type args struct{ userID, taskID int64 }
+	type args struct{ userID, userTaskID int64 }
+
 	tests := []struct {
 		name    string
 		seed    func(s *MemoryStore) // чем наполняем стор перед вызовом
@@ -24,32 +25,32 @@ func TestDeleteTask(t *testing.T) {
 			name: "ok: delete existing",
 			seed: func(s *MemoryStore) {
 				u := int64(1)
-				tk := types.Task{ID: 10, UserID: u, Text: "del"}
-				s.Data[u] = map[int64]types.Task{tk.ID: tk}
+				tk := types.Task{ID: 10, UserID: u, Text: "del", UserTaskID: 1}
+				s.Data[u] = map[int64]types.Task{10: tk}
 			},
-			args:    args{userID: 1, taskID: 10},
+			args:    args{userID: 1, userTaskID: 1},
 			wantErr: false,
 		},
 		{
 			name:    "err: user not found",
 			seed:    func(s *MemoryStore) {}, // пусто
-			args:    args{userID: 999, taskID: 1},
+			args:    args{userID: 999, userTaskID: 1},
 			wantErr: true,
 		},
 		{
 			name:    "err: task not found",
 			seed:    func(s *MemoryStore) { s.Data[1] = map[int64]types.Task{} },
-			args:    args{userID: 1, taskID: 999},
+			args:    args{userID: 1, userTaskID: 999},
 			wantErr: true,
 		},
 		{
 			name: "err: second delete",
 			seed: func(s *MemoryStore) {
 				u := int64(2)
-				tk := types.Task{ID: 20, UserID: u, Text: "once"}
-				s.Data[u] = map[int64]types.Task{tk.ID: tk}
+				tk := types.Task{ID: 20, UserID: u, Text: "once", UserTaskID: 1}
+				s.Data[u] = map[int64]types.Task{20: tk}
 			},
-			args:    args{userID: 2, taskID: 20},
+			args:    args{userID: 2, userTaskID: 1},
 			wantErr: false, // первый вызов
 		},
 	}
@@ -59,12 +60,12 @@ func TestDeleteTask(t *testing.T) {
 			s := newStore()
 			tt.seed(s)
 
-			err := s.DeleteTask(context.Background(), tt.args.userID, tt.args.taskID)
+			err := s.DeleteTask(context.Background(), tt.args.userID, tt.args.userTaskID)
 			if tt.name == "err: second delete" {
 				if err != nil {
 					t.Fatalf("unexpected err on first delete: %v", err)
 				}
-				err = s.DeleteTask(context.Background(), tt.args.userID, tt.args.taskID) // второй раз
+				err = s.DeleteTask(context.Background(), tt.args.userID, tt.args.userTaskID) // второй раз
 				if err == nil {
 					t.Fatalf("expected error on second delete, got nil")
 				}
@@ -75,7 +76,7 @@ func TestDeleteTask(t *testing.T) {
 				t.Fatalf("wantErr=%v, got err=%v", tt.wantErr, err)
 			}
 			if !tt.wantErr {
-				if _, ok := s.Data[tt.args.userID][tt.args.taskID]; ok {
+				if _, ok := s.Data[tt.args.userID][tt.args.userTaskID]; ok {
 					t.Fatalf("task still in store after delete")
 				}
 			}

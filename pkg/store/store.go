@@ -24,17 +24,24 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 	ms.Logger.Debugf("Mutex was locked")
 
 	ms.Logger.Debugf("Defining taskID: %v", ms.nextID)
+
 	t.ID = ms.nextID
 
 	ms.Logger.Debugf("Create map for user with tasks.")
+
 	if ms.Data[t.UserID] == nil {
-		newmap := make(map[int64]types.Task)
-		ms.Data[t.UserID] = newmap
+		ms.Data[t.UserID] = make(map[int64]types.Task)
 	}
 
-	localID := int64(len(ms.Data[t.UserID]) + 1)
+	var maxlocalID int64 = 0
 
-	t.UserTaskID = localID
+	for _, existing := range ms.Data[t.UserID] {
+		if existing.UserTaskID > maxlocalID {
+			maxlocalID = existing.UserTaskID
+		}
+	}
+
+	t.UserTaskID = maxlocalID + 1
 
 	ms.Data[t.UserID][ms.nextID] = t
 
@@ -49,6 +56,9 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 }
 
 func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Task, error) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
 	if len(ms.Data[userID]) == 0 {
 		return []types.Task{}, fmt.Errorf("you have no tasks")
 	}
@@ -56,9 +66,6 @@ func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Tas
 	ms.Logger.Debugf("Give all № %v user's tasks.", userID)
 
 	out := make([]types.Task, 0, len(ms.Data[userID]))
-
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
 
 	ms.Logger.Debugf("Take tasks from data and fill the var out to give this var to the user")
 
@@ -72,8 +79,9 @@ func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Tas
 	return out, nil
 }
 
-func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, id int64) error {
-	ms.Logger.Debugf("Deleting №%v user's task №%v", userID, id)
+func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, userTaskID int64) error {
+
+	ms.Logger.Debugf("Deleting №%v user's task №%v", userID, userTaskID)
 
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -84,24 +92,39 @@ func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, id int64) error {
 	if !ok {
 		return fmt.Errorf("user not found")
 	}
-	if _, ok := tasks[id]; !ok {
-		return fmt.Errorf("task %d not found", id)
-	}
-	for userID, tasks := range ms.Data {
-		for taskID := range tasks {
-			if taskID == id {
-				delete(ms.Data[userID], taskID)
-				if len(ms.Data[userID]) == 0 {
-					delete(ms.Data, userID)
-				}
-				ms.Logger.Debugf("Task was deleted")
-				return nil
-			}
+
+	var globalKey int64 = 0
+	found := false
+
+	for gKey, task := range tasks {
+
+		if task.UserTaskID == userTaskID {
+
+			globalKey = gKey
+			found = true
+			break
 		}
+	}
+
+	if !found {
+		return fmt.Errorf("task %d not found", userTaskID)
+	}
+
+	delete(tasks, globalKey)
+
+	if len(tasks) == 0 {
+		delete(ms.Data, userID)
+		return nil
 	}
 
 	ms.Logger.Debugf("Task was deleted")
 
+	for gKey, task := range tasks {
+		if task.UserTaskID > userTaskID {
+			task.UserTaskID--
+			tasks[gKey] = task
+		}
+	}
 	ms.Logger.Debugf("Mutex was unlocked")
 
 	return nil
