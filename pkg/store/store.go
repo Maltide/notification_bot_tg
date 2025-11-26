@@ -31,10 +31,15 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 		newmap := make(map[int64]types.Task)
 		ms.Data[t.UserID] = newmap
 	}
+
 	localID := int64(len(ms.Data[t.UserID]) + 1)
+
 	t.UserTaskID = localID
+
 	ms.Data[t.UserID][ms.nextID] = t
+
 	ms.nextID++
+
 	ms.Logger.Debugf("Incrementating taskID. Now is %v", ms.nextID)
 
 	ms.Logger.Debugf("Mutex was unlocked")
@@ -47,18 +52,23 @@ func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Tas
 	if len(ms.Data[userID]) == 0 {
 		return []types.Task{}, fmt.Errorf("you have no tasks")
 	}
+
 	ms.Logger.Debugf("Give all № %v user's tasks.", userID)
+
 	out := make([]types.Task, 0, len(ms.Data[userID]))
 
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
 	ms.Logger.Debugf("Take tasks from data and fill the var out to give this var to the user")
+
 	for _, t := range ms.Data[userID] {
 		out = append(out, t)
 		ms.Logger.Debugf("Task № %v just added to list", t.ID)
 	}
+
 	ms.Logger.Debugf("Done. At now, we returning final out list")
+
 	return out, nil
 }
 

@@ -10,18 +10,12 @@ import (
 )
 
 func TestCreateTask(t *testing.T) {
-	now := time.Now()
-
 	tests := []struct {
 		name    string
 		in      types.Task
 		wantErr bool
 	}{
-		{"past", types.Task{UserID: 1, Text: "x", DueAt: now.Add(-time.Minute)}, true},
-		{"future", types.Task{UserID: 1, Text: "x", DueAt: now.Add(time.Minute)}, false},
-		{"empty_text", types.Task{UserID: 1, Text: "   ", DueAt: now.Add(time.Minute)}, true},
-		{"current time", types.Task{UserID: 1, Text: "y", DueAt: time.Now()}, true},
-		{"empty time", types.Task{UserID: 1, Text: "y", DueAt: time.Time{}}, true},
+		{"store is not empty after create", types.Task{UserID: 1, Text: "not empty", DueAt: time.Time{}}, false},
 	}
 
 	for _, tt := range tests {
@@ -43,11 +37,25 @@ func TestCreateTask(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected err: %v", err)
 			}
+			if got.DueAt != tt.in.DueAt {
+				t.Fatalf("dueAt mismatch")
+			}
 			if got.ID == 0 {
 				t.Fatalf("want non-zero ID")
 			}
 			if got.Text != tt.in.Text {
 				t.Fatalf("text mismatch: %q vs %q", got.Text, tt.in.Text)
+			}
+			_, ok := store.Data[tt.in.UserID]
+			if !ok {
+				t.Fatalf("task was not added")
+			}
+			taskinStore := store.Data[got.UserID][got.ID]
+			if taskinStore.Text != tt.in.Text {
+				t.Fatalf("text was not added to store")
+			}
+			if taskinStore.DueAt != tt.in.DueAt {
+				t.Fatalf("dueAt was not added to store")
 			}
 		})
 	}

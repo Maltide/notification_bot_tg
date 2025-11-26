@@ -5,79 +5,77 @@ import (
 	"time"
 )
 
-func TestParseAdd(t *testing.T) {
+func TestParseAddTask(t *testing.T) {
 
-	now := time.Date(2025, 9, 29, 11, 00, 0, 0, Moscow_current_time)
+	parser := NewTimeParser()
 
-	parser := NewTimeParser() // logging - later...
+	loc, _ := time.LoadLocation("Europe/Moscow")
+
+	parser.NowFunc = func() time.Time {
+		return time.Date(2025, 9, 29, 11, 10, 0, 0, loc)
+	}
 
 	tests := []struct {
-		name, userinput, wantText string
-		wantDue                   time.Time
-		wantErr                   bool
+		name, wantText string
+		userinput      []string
+		wantDue        time.Time
+		wantErr        bool
 	}{
 		{
 			name:      "ok simple",
-			userinput: "29.09.25 11:10 drink water",
+			userinput: []string{"29.09.25", "11:10", "drink", "water"},
 			wantText:  "drink water",
-			wantDue:   time.Date(2025, 9, 29, 11, 10, 0, 0, moscow_current_time),
+			wantDue:   time.Date(2025, 9, 29, 11, 10, 0, 0, loc),
 			wantErr:   false,
 		},
 		{
 			name:      "err empty string",
-			userinput: "",
+			userinput: []string{},
 			wantErr:   true,
 		},
 		{
 			name:      "err only duration",
-			userinput: "29.09.25 11:00",
+			userinput: []string{"29.09.25", "11:00"},
 			wantErr:   true,
 		},
 		{
 			name:      "err bad duration",
-			userinput: "abc task",
+			userinput: []string{"abc", "task", "time"},
 			wantErr:   true,
 		},
 		{
 			name:      "err zero duration",
-			userinput: "00.00.00 00:00 task",
+			userinput: []string{"00.00.00", "00:00", "task"},
 			wantErr:   true,
 		},
 		{
 			name:      "day_check",
-			userinput: "30.09.25 11:10                daycheck test", // + whitespace check
+			userinput: []string{"30.09.25", "11:10", "daycheck", "test"},
 			wantText:  "daycheck test",
-			wantDue:   time.Date(2025, 9, 30, 11, 10, 0, 0, moscow_current_time),
-			wantErr:   false,
-		},
-		{
-			name:      "1m",
-			userinput: "29.09.25 11:01 go home",
-			wantText:  "go home",
-			wantDue:   time.Date(2025, 9, 29, 11, 01, 0, 0, moscow_current_time),
+			wantDue:   time.Date(2025, 9, 30, 11, 10, 0, 0, loc),
 			wantErr:   false,
 		},
 	}
 
-	// 	for _, tt := range tests {
-	// 		t.Run(tt.name, func(t *testing.T) {
-	// 			due, text, err := parser.ParseAddTask(tt.userinput)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			due, text, err := parser.ParseAddTask(tt.userinput)
 
-	// 			if tt.wantErr {
-	// 				if err == nil {
-	// 					t.Errorf("expected error, got none")
-	// 				}
-	// 				return
-	// 			}
-	// 			if err != nil {
-	// 				t.Errorf("unexpected error: %v", err)
-	// 			}
-	// 			if text != tt.wantText {
-	// 				t.Errorf("got text %q, want %q", text, tt.wantText)
-	// 			}
-	// 			if !due.Equal(tt.wantDue) {
-	// 				t.Errorf("got due %v, want %v", due, tt.wantDue)
-	// 			}
-	// 		})
-	// 	}
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected error, got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if text != tt.wantText {
+				t.Errorf("got text %q, want %q", text, tt.wantText)
+			}
+			if !due.Equal(tt.wantDue) {
+				t.Errorf("got due %v, want %v", due, tt.wantDue)
+			}
+		})
+	}
 }

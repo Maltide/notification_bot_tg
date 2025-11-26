@@ -11,7 +11,9 @@ var moscow_current_time, _ = time.LoadLocation("Europe/Moscow")
 const dateTimelayout = "02.01.06 15:04"
 
 func NewTimeParser() *TimeParser {
-	return &TimeParser{}
+	return &TimeParser{
+		NowFunc: time.Now,
+	}
 }
 
 func (tp *TimeParser) ParseAddTask(userargs []string) (due time.Time, text string, err error) {
@@ -26,7 +28,7 @@ func (tp *TimeParser) ParseAddTask(userargs []string) (due time.Time, text strin
 		return time.Time{}, "", fmt.Errorf("неправильный формат даты или времени")
 	}
 
-	if due.Before(time.Now()) {
+	if due.Before(tp.NowFunc()) {
 		return time.Time{}, "", fmt.Errorf("попытка ввести прошедшее время")
 	}
 
