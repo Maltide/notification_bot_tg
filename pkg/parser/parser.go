@@ -19,7 +19,7 @@ func NewTimeParser() *TimeParser {
 func (tp *TimeParser) ParseAddTask(userargs []string) (due time.Time, text string, err error) {
 
 	if len(userargs) < 3 {
-		return time.Time{}, "", fmt.Errorf("нужен формат именно такой: 12.11.25 15:05 Сходить в магазин")
+		return time.Time{}, "", fmt.Errorf("/add 12.11.25 15:05 Сходить в магазин")
 	}
 
 	notif_time := strings.ReplaceAll(userargs[0]+" "+userargs[1], ",", "")

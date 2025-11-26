@@ -38,7 +38,7 @@ func (h *Handler) HandleCommand(ctx context.Context, userID, chatID int64, comma
 	case "/help":
 		return h.handleHelp()
 	default:
-		return "Unknown command. Type /help for available commands."
+		return "Неизвестная команда.\nПишите /help чтобы узнать какие команды есть."
 	}
 }
 
@@ -72,10 +72,6 @@ func (h *Handler) handleList(ctx context.Context, userID int64) string {
 		return fmt.Sprintf("%v", err)
 	}
 
-	// if len(tasks) == 0 {
-	// 	return "You have no pending tasks"
-	// }
-
 	return messages.MsgList(tasks)
 }
 
@@ -91,7 +87,7 @@ func (h *Handler) handleDelete(ctx context.Context, userID int64, args []string)
 
 	if err := h.store.DeleteTask(ctx, userID, taskID); err != nil {
 		h.log.Errorf("Failed to delete task: %v", err)
-		return "Failed to delete task"
+		return "Ошибка при удалении. Напишите /help - там указано как удалять заметки"
 	}
 
 	h.scheduler.Refresh()
