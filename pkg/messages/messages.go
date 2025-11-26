@@ -27,9 +27,9 @@ func MsgList(tasks []types.Task) string {
 }
 
 func MsgHelp() string {
-	return `Available commands:
-/add <duration> <text> - Add a new task (e.g., /add 12.05.2025 15:05 Buy groceries)
-/list - List all your tasks
-/delete <id> - Delete a task by ID
-/help - Show this help message`
+	return `Доступные команды:
+/add <дата> <время> <текст> - Добавляет новую заметку(пример: /add 12.05.2025 15:05 Купить продукты)
+/list - Покажет Вам текущие заметки и её ID(по нему можно удалить заметку)
+/delete <id> - Удаляет заметку по ID (пример: вызвали /list - увидели какая цифра ID у заметки и потом эту цифру пишите в команде /delete 1, где 1 - ID заметки)
+/help - Показать все доступные команды`
 }

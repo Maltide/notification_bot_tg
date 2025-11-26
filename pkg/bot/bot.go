@@ -87,7 +87,7 @@ func (b *Bot) handleUpdate(ctx context.Context, upd tgbotapi.Update) {
 		b.handleCommand(ctx, upd.Message)
 		return
 	}
-	b.sendMessage(upd.Message.Chat.ID, "Use /help")
+	b.sendMessage(upd.Message.Chat.ID, "Вам может помочь команда /help")
 	// TODO: здесь будет обработка обычных сообщений (создание напоминаний).
 }
 
