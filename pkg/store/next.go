@@ -13,6 +13,8 @@ func (ms *MemoryStore) NextTask(ctx context.Context) (types.Task, error) {
 		return types.Task{}, fmt.Errorf("no any cases at all")
 	}
 
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 	nearTask := types.Task{}
 	now := time.Now()
 
