@@ -25,7 +25,7 @@ func (tp *TimeParser) ParseAddTask(userargs []string) (due time.Time, text strin
 	notif_time := strings.ReplaceAll(userargs[0]+" "+userargs[1], ",", "")
 	due, err = time.ParseInLocation(dateTimelayout, notif_time, moscow_current_time)
 	if err != nil {
-		return time.Time{}, "", fmt.Errorf("неправильный формат даты или времени")
+		return time.Time{}, "", fmt.Errorf("неправильный формат даты или времени, посомтрите в /help")
 	}
 
 	if due.Before(tp.NowFunc()) {

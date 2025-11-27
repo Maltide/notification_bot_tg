@@ -60,7 +60,7 @@ func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Tas
 	defer ms.mu.Unlock()
 
 	if len(ms.Data[userID]) == 0 {
-		return []types.Task{}, fmt.Errorf("you have no tasks")
+		return []types.Task{}, fmt.Errorf("заметки отсутствуют")
 	}
 
 	ms.Logger.Debugf("Give all № %v user's tasks.", userID)
