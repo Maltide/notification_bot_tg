@@ -9,39 +9,34 @@ import (
 	"go.uber.org/zap"
 )
 
-// NotifyFunc описывает функцию, которая доставляет напоминание конечному пользователю.
-// TODO: расширить контракт (форматирование текста, ретраи), когда появится реальный Telegram-адаптер.
+// NotifyFunc delivers a task notification to the end user (e.g. via Telegram).
 type NotifyFunc func(ctx context.Context, task types.Task) error
 
-// Scheduler задаёт общий контракт планировщиков напоминаний.
+// Scheduler defines the contract for reminder schedulers.
 type Scheduler interface {
-	// Start запускает фоновый цикл и должен вызываться в горутине.
 	Start(ctx context.Context)
 	// Refresh просит пересчитать ближайшее напоминание после изменений в стораже.
 	Refresh()
-	// Stop завершает работу планировщика и освобождает ресурсы.
-	Stop(ctx context.Context) error
+	Stop() error
 }
 
-// TimerScheduler — базовая реализация Scheduler, использующая один таймер.
+// TimerScheduler is a Scheduler implementation based on a single timer.
 type TimerScheduler struct {
-	Store        types.Store        // источник задач; ожидается, что NextTask вернёт ErrNoTasks при пустом расписании.
-	Notify       NotifyFunc         // функция доставки уведомлений (Telegram, лог и т.п.).
-	Logger       *zap.SugaredLogger // общий логгер для отладки.
-	refreshCh    chan struct{}      // канал сигналов о том, что расписание изменилось.
-	timer        *time.Timer        // активный таймер до ближайшей задачи.
-	now          func() time.Time   // точка расширения для тестов (можно подменить clock).
+	Store        types.Store // источник задач;
+	Notify       NotifyFunc  // функция доставки уведомлений (Telegram, лог и т.п.).
+	Logger       *zap.SugaredLogger
+	refreshCh    chan struct{}    // канал сигналов о том, что расписание изменилось.
+	timer        *time.Timer      // активный таймер до ближайшей задачи.
+	now          func() time.Time // точка расширения для тестов (можно подменить clock).
 	current_task types.Task
 	wg           sync.WaitGroup
 	// ctx          context.Context
 	// cancel       context.CancelFunc
-	// TODO: добавить канал остановки и sync.WaitGroup для graceful shutdown на следующих этапах. ????????7
+	// TODO: добавить канал остановки и sync.WaitGroup для graceful shutdown
 }
 
-// NewTimerScheduler подготавливает структуру и создаёт вспомогательные каналы.
-// TODO: добавить параметры конфигурации (буфер канала, дефолтные таймауты) после первых прототипов.
+// NewTimerScheduler constructs a TimerScheduler.
 func NewTimerScheduler(store types.Store, notify NotifyFunc, logger *zap.SugaredLogger) *TimerScheduler {
-	// ctx, cancel := context.WithCancel(context.Background())
 	return &TimerScheduler{
 		Store:        store,
 		Notify:       notify,
@@ -54,10 +49,8 @@ func NewTimerScheduler(store types.Store, notify NotifyFunc, logger *zap.Sugared
 	}
 }
 
-// Start запускает главный цикл обработки напоминаний. Реальную логику студент добавит позже.
-
+// Start runs the scheduler main loop. It blocks until ctx is cancelled.
 func (s *TimerScheduler) Start(ctx context.Context) {
-	// TODO: реализовать цикл: получить NextTask, запустить таймер, ждать либо refresh, либо контекст.
 	if s.timer == nil { // this fake-timer need because of initialization(or we get panicked)
 		s.timer = time.NewTimer(time.Hour * 24 * 365)
 	}
@@ -129,7 +122,7 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 	}
 }
 
-// Refresh отправляет сигнал в refreshCh, чтобы пересчитать ближайшее напоминание.
+// Refresh signals the scheduler to recalculate the nearest reminder.
 func (s *TimerScheduler) Refresh() { //use this after calling add,del,upd functions
 	select {
 	case s.refreshCh <- struct{}{}:
@@ -140,9 +133,8 @@ func (s *TimerScheduler) Refresh() { //use this after calling add,del,upd functi
 	// TODO: отправить struct{} в refreshCh с защитой от переполнения буфера.
 }
 
-// Stop завершает работу планировщика.
+// Stop stops the scheduler.
 func (s *TimerScheduler) Stop() error {
-	// TODO: корректно остановить таймер и дождаться завершения горутины (graceful shutdown позже).
 	s.timer.Stop()
 	return nil
 }

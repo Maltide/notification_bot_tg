@@ -8,6 +8,7 @@ import (
 	"github.com/Maltide/notification_bot_tg/pkg/types"
 )
 
+// NextTask returns the earliest task by DueAt, or ErrNoTasks if the store is empty.
 func (ms *MemoryStore) NextTask(ctx context.Context) (types.Task, error) {
 	if ms.Data == nil {
 		return types.Task{}, fmt.Errorf("no any cases at all")

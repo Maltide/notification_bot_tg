@@ -8,14 +8,17 @@ import (
 	"github.com/Maltide/notification_bot_tg/pkg/types"
 )
 
+// MsgDelete returns the user-facing text for a successful delete.
 func MsgDelete() string {
 	return "Заметка успешно удалена"
 }
 
+// MsgAdd returns the user-facing text for a newly created task.
 func MsgAdd(createdTaskID int64, due time.Time) string {
 	return fmt.Sprintf("Заметка добавлена! ID: %d | Придет: %s в %s\n", createdTaskID, due.Format("02.01.06"), due.Format("15:04"))
 }
 
+// MsgList formats a list of tasks for displaying to the user.
 func MsgList(tasks []types.Task) string {
 	var sb strings.Builder
 	sb.WriteString("Ваши заметки:\n")
@@ -26,6 +29,7 @@ func MsgList(tasks []types.Task) string {
 	return sb.String()
 }
 
+// MsgHelp returns help text listing supported bot commands.
 func MsgHelp() string {
 	return `Доступные команды:
 

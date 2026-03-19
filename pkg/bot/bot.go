@@ -12,8 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Bot инкапсулирует telegram-bot-api и маршрутизацию команд.
-// TODO: расширить зависимостями (parser, store, scheduler) по мере реализации.
+// Bot wraps telegram-bot-api and handles update/command routing.
 type Bot struct {
 	api        *tgbotapi.BotAPI
 	logger     *zap.SugaredLogger
@@ -22,15 +21,14 @@ type Bot struct {
 	config     *config.Config
 }
 
-// NewBot создаёт каркас бота с готовым клиентом.
+// NewBot constructs a new Bot instance.
 func NewBot(api *tgbotapi.BotAPI, logger *zap.SugaredLogger, cmdHandler *helperpkg.Handler,
 	notifyCh <-chan types.Task, config *config.Config) *Bot {
 	return &Bot{api: api, logger: logger, cmdHandler: cmdHandler, notifyCh: notifyCh, config: config}
 }
 
-// Start запускает перехват апдейтов и реагирует хотя бы на /help.
+// Start begins receiving updates from Telegram and dispatching them.
 func (b *Bot) Start(ctx context.Context) error {
-	// TODO: вынести конфигурацию long polling в настройки.
 	updateCfg := tgbotapi.NewUpdate(0)
 	updateCfg.Timeout = b.config.TGTimeout
 
@@ -83,6 +81,7 @@ func (b *Bot) handleUpdate(ctx context.Context, upd tgbotapi.Update) {
 		return
 	}
 
+	b.logger.Infof("Update received: from=%v chat=%v text=%q", upd.Message.From.ID, upd.Message.Chat.ID, upd.Message.Text)
 	if upd.Message.IsCommand() {
 		b.handleCommand(ctx, upd.Message)
 		return
@@ -95,6 +94,7 @@ func (b *Bot) handleCommand(ctx context.Context, msg *tgbotapi.Message) {
 	command := "/" + msg.Command()
 	commandArgs := msg.CommandArguments()
 	args := strings.Fields(commandArgs)
+	b.logger.Infof("Command: user=%d chat=%d cmd=%s args=%v", msg.From.ID, msg.Chat.ID, command, args)
 	response := b.cmdHandler.HandleCommand(ctx, msg.From.ID, msg.Chat.ID, command, args)
 	reply := tgbotapi.NewMessage(msg.Chat.ID, response)
 	b.sendMessage(reply.ChatID, reply.Text)

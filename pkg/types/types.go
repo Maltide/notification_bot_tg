@@ -5,12 +5,14 @@ import (
 	"time"
 )
 
+// Task represents a scheduled reminder.
 type Task struct {
 	ID, UserID, ChatID, UserTaskID int64
 	Text                           string
 	DueAt                          time.Time
 }
 
+// Store is the persistence interface for tasks.
 type Store interface {
 	CreateTask(ctx context.Context, t Task) (Task, error)
 	ListTasks(ctx context.Context, userID int64) ([]Task, error)
@@ -18,6 +20,7 @@ type Store interface {
 	NextTask(ctx context.Context) (Task, error)
 }
 
+// Parser parses user input for commands (e.g. /add).
 type Parser interface {
 	ParseAddTask(userargs []string) (due time.Time, text string, err error)
 }

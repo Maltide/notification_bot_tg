@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// NewMemoryStore constructs a MemoryStore.
 func NewMemoryStore(logger *zap.SugaredLogger) *MemoryStore {
 	return &MemoryStore{
 		Logger: logger,
@@ -15,7 +16,11 @@ func NewMemoryStore(logger *zap.SugaredLogger) *MemoryStore {
 		nextID: 1,
 	}
 }
+
+// CreateTask inserts a new task into the in-memory store.
 func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task, error) {
+	// CreateTask adds a new task to the in-memory store and assigns IDs.
+	// This is intended for development and testing only.
 	ms.Logger.Debugf("Executing CreateTask on task %v", t)
 
 	ms.mu.Lock()
@@ -27,9 +32,8 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 
 	t.ID = ms.nextID
 
-	ms.Logger.Debugf("Create map for user with tasks.")
-
 	if ms.Data[t.UserID] == nil {
+		ms.Logger.Debugf("Create map for user with tasks.")
 		ms.Data[t.UserID] = make(map[int64]types.Task)
 	}
 
@@ -55,6 +59,7 @@ func (ms *MemoryStore) CreateTask(ctx context.Context, t types.Task) (types.Task
 	return t, nil
 }
 
+// ListTasks returns all tasks for a given user.
 func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Task, error) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -79,6 +84,7 @@ func (ms *MemoryStore) ListTasks(ctx context.Context, userID int64) ([]types.Tas
 	return out, nil
 }
 
+// DeleteTask deletes a user's task by user_task_id and shifts remaining tasks down.
 func (ms *MemoryStore) DeleteTask(ctx context.Context, userID, userTaskID int64) error {
 
 	ms.Logger.Debugf("Deleting №%v user's task №%v", userID, userTaskID)

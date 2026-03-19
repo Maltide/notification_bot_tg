@@ -10,6 +10,7 @@ import (
 
 	botpkg "github.com/Maltide/notification_bot_tg/pkg/bot"
 	"github.com/Maltide/notification_bot_tg/pkg/config"
+	"github.com/Maltide/notification_bot_tg/pkg/db"
 	helperpkg "github.com/Maltide/notification_bot_tg/pkg/helpers"
 	"github.com/Maltide/notification_bot_tg/pkg/logger"
 	parserpkg "github.com/Maltide/notification_bot_tg/pkg/parser"
@@ -19,16 +20,8 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// main is the program entry point: it initializes services and starts the bot and scheduler.
 func main() {
-	endCh := make(chan os.Signal, 1)
-	signal.Notify(endCh, syscall.SIGINT)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	var wg sync.WaitGroup
-
-	notifyCh := make(chan types.Task, 1)
-
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "main: config:", err)
@@ -39,7 +32,22 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
+
 	log.Info("main: logger started")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	db := db.DBInit(log, cfg, ctx)
+
+	postgStore := store.NewPostgresStore(db, log)
+
+	endCh := make(chan os.Signal, 1)
+	signal.Notify(endCh, syscall.SIGINT, syscall.SIGTERM)
+
+	var wg sync.WaitGroup
+
+	notifyCh := make(chan types.Task, 1)
 
 	api, err := tgbotapi.NewBotAPI(cfg.TGToken)
 	if err != nil {
@@ -47,15 +55,13 @@ func main() {
 		return
 	}
 
-	ms := store.NewMemoryStore(log)
-
 	notifyUser := func(ctx context.Context, task types.Task) error {
 		log.Infof("notify task: %v", task)
 		notifyCh <- task
 		return nil
 	}
 
-	scheduler := scheduler.NewTimerScheduler(ms, notifyUser, log)
+	scheduler := scheduler.NewTimerScheduler(postgStore, notifyUser, log)
 
 	wg.Add(1)
 	go func() {
@@ -63,9 +69,12 @@ func main() {
 		scheduler.Start(ctx)
 	}()
 
+	// Важно: после рестарта задачи уже лежат в БД. Refresh заставит scheduler выбрать ближайшую.
+	scheduler.Refresh()
+
 	parser := parserpkg.NewTimeParser()
 
-	handler := helperpkg.NewHandler(ms, scheduler, log, parser)
+	handler := helperpkg.NewHandler(postgStore, scheduler, log, parser)
 
 	bot := botpkg.NewBot(api, log, handler, notifyCh, &cfg)
 
