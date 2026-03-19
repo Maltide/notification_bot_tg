@@ -77,7 +77,9 @@ func (h *Handler) handleAdd(ctx context.Context, userID, chatID int64, args []st
 
 	h.log.Infof("handleAdd created: user=%d id=%d user_task_id=%d due=%s", createdTask.UserID, createdTask.ID, createdTask.UserTaskID, createdTask.DueAt.Format(time.RFC3339))
 
-	h.scheduler.Refresh()
+	if h.scheduler != nil {
+		h.scheduler.Refresh()
+	}
 	return messages.MsgAdd(createdTask.UserTaskID, due)
 }
 
@@ -114,7 +116,9 @@ func (h *Handler) handleDelete(ctx context.Context, userID int64, args []string)
 
 	h.log.Infof("handleDelete succeeded: user=%d deleted_user_task_id=%d", userID, taskID)
 
-	h.scheduler.Refresh()
+	if h.scheduler != nil {
+		h.scheduler.Refresh()
+	}
 	return messages.MsgDelete()
 }
 

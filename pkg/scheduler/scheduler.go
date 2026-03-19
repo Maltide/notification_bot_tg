@@ -34,6 +34,8 @@ type TimerScheduler struct {
 	// cancel       context.CancelFunc
 }
 
+const notifyRetryDelay = 2 * time.Second
+
 // NewTimerScheduler constructs a TimerScheduler.
 // NewTimerScheduler accepts either a NotifyFunc or a chan<- types.Task as the
 // second argument. For backward compatibility tests may pass a NotifyFunc.
@@ -63,14 +65,26 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 			if s.current_task.UserID == 0 {
 				continue
 			}
+			notifyOK := false
 			if s.Notify != nil {
 				if err := s.Notify.Notify(ctx, s.current_task); err != nil {
 					s.Logger.Warnf("notify error: %v", err)
+				} else {
+					notifyOK = true
 				}
 			} else {
-				s.Logger.Warn("no notify function provided, skipping notification")
+				s.Logger.Warn("no notifier provided, skipping notification")
 			}
-			s.Store.DeleteTask(ctx, s.current_task.UserID, s.current_task.UserTaskID)
+
+			if !notifyOK {
+				// Keep task in store; retry after short delay.
+				s.timer = time.NewTimer(notifyRetryDelay)
+				continue
+			}
+
+			if err := s.Store.DeleteTask(ctx, s.current_task.UserID, s.current_task.UserTaskID); err != nil {
+				s.Logger.Warnf("DeleteTask after notify failed: %v", err)
+			}
 			s.Refresh() // give signal to refreshCh => update timer to new task if it exists
 
 			continue
@@ -91,22 +105,39 @@ func (s *TimerScheduler) Start(ctx context.Context) {
 				continue
 			}
 
-			if newTask.DueAt.Before(time.Now()) {
+			if newTask.DueAt.Before(s.now()) {
+				notifyOK := false
 				if s.Notify != nil {
 					if err := s.Notify.Notify(ctx, newTask); err != nil {
 						s.Logger.Warnf("notify error: %v", err)
+					} else {
+						notifyOK = true
 					}
 				} else {
-					s.Logger.Warn("no notify function provided, skipping notification")
+					s.Logger.Warn("no notifier provided, skipping notification")
 				}
-				s.Store.DeleteTask(ctx, newTask.UserID, newTask.UserTaskID)
+
+				if !notifyOK {
+					// Keep task in store; retry after short delay.
+					s.current_task = newTask
+					s.timer = time.NewTimer(notifyRetryDelay)
+					continue
+				}
+
+				if err := s.Store.DeleteTask(ctx, newTask.UserID, newTask.UserTaskID); err != nil {
+					s.Logger.Warnf("DeleteTask after notify failed: %v", err)
+				}
 				s.Refresh()
 				continue
 			}
 
 			s.current_task = newTask // update current_task because this var need for notify users
 
-			s.timer = time.NewTimer(time.Until(newTask.DueAt))
+			wait := time.Until(newTask.DueAt)
+			if wait < 0 {
+				wait = 0
+			}
+			s.timer = time.NewTimer(wait)
 		case <-ctx.Done():
 			s.Logger.Info("context done case")
 

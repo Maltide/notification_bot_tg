@@ -16,7 +16,9 @@ func init() {
 	var err error
 	moscowLoc, err = time.LoadLocation("Europe/Moscow")
 	if err != nil {
-		moscowLoc = time.Local
+		// In minimal Docker images (e.g. Alpine without tzdata) LoadLocation can fail.
+		// Moscow doesn't use DST, so a fixed +03:00 offset is sufficient.
+		moscowLoc = time.FixedZone("Europe/Moscow", 3*60*60)
 	}
 }
 

@@ -9,7 +9,10 @@ func TestParseAddTask(t *testing.T) {
 
 	parser := NewTimeParser()
 
-	loc, _ := time.LoadLocation("Europe/Moscow")
+	loc, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		loc = time.FixedZone("Europe/Moscow", 3*60*60)
+	}
 
 	parser.NowFunc = func() time.Time {
 		return time.Date(2025, 9, 29, 11, 10, 0, 0, loc)

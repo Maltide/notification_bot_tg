@@ -107,6 +107,7 @@ func (b *Bot) sendMessage(chatID int64, text string) error {
 	message := tgbotapi.NewMessage(chatID, text)
 	if _, err := b.api.Send(message); err != nil {
 		b.logger.Errorf("failed to send message: %v", err)
+		return err
 	}
 	return nil
 }
