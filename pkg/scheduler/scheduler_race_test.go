@@ -11,6 +11,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// fnNotifier wraps a function to implement types.Notifier for tests.
+type fnNotifier struct {
+	f func(context.Context, types.Task) error
+}
+
+func (n fnNotifier) Notify(ctx context.Context, task types.Task) error { return n.f(ctx, task) }
+
 func TestScheduler_Race(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 
@@ -24,7 +31,8 @@ func TestScheduler_Race(t *testing.T) {
 		return nil
 	}
 
-	sched := NewTimerScheduler(st, notifyFn, logger)
+	// wrap function into a types.Notifier-compatible object
+	sched := NewTimerScheduler(st, fnNotifier{notifyFn}, logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

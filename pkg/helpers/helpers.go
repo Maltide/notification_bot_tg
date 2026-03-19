@@ -29,6 +29,13 @@ func NewHandler(store types.Store, scheduler *scheduler.TimerScheduler, log *zap
 	}
 }
 
+// SetScheduler attaches a scheduler to the handler after construction.
+// This allows creating the Handler before the scheduler to avoid cyclic
+// constructor dependencies (handler -> scheduler -> bot -> handler).
+func (h *Handler) SetScheduler(s *scheduler.TimerScheduler) {
+	h.scheduler = s
+}
+
 // HandleCommand routes a parsed Telegram command to the corresponding handler method.
 func (h *Handler) HandleCommand(ctx context.Context, userID, chatID int64, command string, args []string) string {
 	h.log.Infof("HandleCommand: user=%d chat=%d cmd=%s args=%v", userID, chatID, command, args)

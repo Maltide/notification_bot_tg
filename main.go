@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 
 	botpkg "github.com/Maltide/notification_bot_tg/pkg/bot"
 	"github.com/Maltide/notification_bot_tg/pkg/config"
@@ -16,7 +14,6 @@ import (
 	parserpkg "github.com/Maltide/notification_bot_tg/pkg/parser"
 	"github.com/Maltide/notification_bot_tg/pkg/scheduler"
 	"github.com/Maltide/notification_bot_tg/pkg/store"
-	"github.com/Maltide/notification_bot_tg/pkg/types"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -35,19 +32,15 @@ func main() {
 
 	log.Info("main: logger started")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
 
 	db := db.DBInit(log, cfg, ctx)
 
 	postgStore := store.NewPostgresStore(db, log)
 
-	endCh := make(chan os.Signal, 1)
-	signal.Notify(endCh, syscall.SIGINT, syscall.SIGTERM)
+	// no explicit signal handling; rely on Docker/OS to stop the process
 
 	var wg sync.WaitGroup
-
-	notifyCh := make(chan types.Task, 1)
 
 	api, err := tgbotapi.NewBotAPI(cfg.TGToken)
 	if err != nil {
@@ -55,28 +48,28 @@ func main() {
 		return
 	}
 
-	notifyUser := func(ctx context.Context, task types.Task) error {
-		log.Infof("notify task: %v", task)
-		notifyCh <- task
-		return nil
-	}
+	parser := parserpkg.NewTimeParser()
 
-	scheduler := scheduler.NewTimerScheduler(postgStore, notifyUser, log)
+	// create handler without scheduler to avoid constructor cycle
+	handler := helperpkg.NewHandler(postgStore, nil, log, parser)
+
+	// create bot with handler
+	bot := botpkg.NewBot(api, log, handler, &cfg)
+
+	// create scheduler and pass the bot as Notifier
+	sched := scheduler.NewTimerScheduler(postgStore, bot, log)
+
+	// attach scheduler to handler now that it exists
+	handler.SetScheduler(sched)
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		scheduler.Start(ctx)
+		sched.Start(ctx)
 	}()
 
 	// Важно: после рестарта задачи уже лежат в БД. Refresh заставит scheduler выбрать ближайшую.
-	scheduler.Refresh()
-
-	parser := parserpkg.NewTimeParser()
-
-	handler := helperpkg.NewHandler(postgStore, scheduler, log, parser)
-
-	bot := botpkg.NewBot(api, log, handler, notifyCh, &cfg)
+	sched.Refresh()
 
 	wg.Add(1)
 	go func() {
@@ -84,8 +77,6 @@ func main() {
 		bot.Start(ctx)
 	}()
 
-	<-endCh
-	cancel()
-	scheduler.Stop()
-	wg.Wait()
+	// block until process is stopped externally (e.g., Docker sends SIGTERM)
+	select {}
 }

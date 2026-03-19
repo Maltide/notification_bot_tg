@@ -79,12 +79,14 @@ func (ps *PostgresStore) ListTasks(ctx context.Context, userID int64) ([]types.T
 		"SELECT id, user_id, chat_id, user_task_id, text, due_at FROM tasks WHERE user_id=$1 ORDER BY user_task_id",
 		userID,
 	)
+
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	out := make([]types.Task, 0)
+
 	for rows.Next() {
 		var t types.Task
 		err := rows.Scan(&t.ID, &t.UserID, &t.ChatID, &t.UserTaskID, &t.Text, &t.DueAt)
@@ -95,12 +97,15 @@ func (ps *PostgresStore) ListTasks(ctx context.Context, userID int64) ([]types.T
 		t.DueAt = t.DueAt.In(moscowLoc)
 		out = append(out, t)
 	}
+
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
 	if len(out) == 0 {
 		return []types.Task{}, fmt.Errorf("заметки отсутствуют")
 	}
+
 	ps.log.Infof("ListTasks returned %d tasks for user=%d", len(out), userID)
 	return out, nil
 }
@@ -145,17 +150,19 @@ func (ps *PostgresStore) DeleteTask(ctx context.Context, userID, userTaskID int6
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+
 	ps.log.Infof("DeleteTask completed: user=%d deleted_user_task_id=%d", userID, userTaskID)
-	ps.log.Debugf("Shifted user_task_id for user=%d after deletion of %d", userID, userTaskID)
+
 	return nil
 }
 
 // NextTask returns the next task to execute (the earliest due_at). If there are no tasks,
 // it returns ErrNoTasks.
 func (ps *PostgresStore) NextTask(ctx context.Context) (types.Task, error) {
-	ps.log.Debugf("NextTask lookup")
+	ps.log.Debugf("NextTask started")
 
 	var t types.Task
+
 	row := ps.db.QueryRowContext(ctx,
 		"SELECT id, user_id, chat_id, user_task_id, text, due_at FROM tasks ORDER BY due_at LIMIT 1",
 	)

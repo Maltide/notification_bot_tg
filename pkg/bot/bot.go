@@ -17,14 +17,12 @@ type Bot struct {
 	api        *tgbotapi.BotAPI
 	logger     *zap.SugaredLogger
 	cmdHandler *helperpkg.Handler
-	notifyCh   <-chan types.Task
 	config     *config.Config
 }
 
 // NewBot constructs a new Bot instance.
-func NewBot(api *tgbotapi.BotAPI, logger *zap.SugaredLogger, cmdHandler *helperpkg.Handler,
-	notifyCh <-chan types.Task, config *config.Config) *Bot {
-	return &Bot{api: api, logger: logger, cmdHandler: cmdHandler, notifyCh: notifyCh, config: config}
+func NewBot(api *tgbotapi.BotAPI, logger *zap.SugaredLogger, cmdHandler *helperpkg.Handler, config *config.Config) *Bot {
+	return &Bot{api: api, logger: logger, cmdHandler: cmdHandler, config: config}
 }
 
 // Start begins receiving updates from Telegram and dispatching them.
@@ -60,7 +58,7 @@ func (b *Bot) Start(ctx context.Context) error {
 		}
 	}(ctx)
 
-	go b.listenNotifications(ctx)
+	// notifications are delivered directly via Bot.Notify called by the scheduler
 
 	for {
 		select {
@@ -100,24 +98,9 @@ func (b *Bot) handleCommand(ctx context.Context, msg *tgbotapi.Message) {
 	b.sendMessage(reply.ChatID, reply.Text)
 }
 
-func (b *Bot) listenNotifications(ctx context.Context) {
-	if b.notifyCh == nil {
-		b.logger.Warn("notifyCh is nil, notifications listener is not started")
-		return
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			b.logger.Infof("stop listenNotifications: context cancelled")
-			return
-		case task, ok := <-b.notifyCh:
-			if !ok {
-				b.logger.Infof("stop listenNotifications: notifyCh closed")
-				return
-			}
-			b.sendMessage(task.ChatID, task.Text)
-		}
-	}
+// Notify sends a reminder to the user for the provided task.
+func (b *Bot) Notify(ctx context.Context, task types.Task) error {
+	return b.sendMessage(task.ChatID, task.Text)
 }
 
 func (b *Bot) sendMessage(chatID int64, text string) error {

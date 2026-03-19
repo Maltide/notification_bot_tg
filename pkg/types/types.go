@@ -24,3 +24,8 @@ type Store interface {
 type Parser interface {
 	ParseAddTask(userargs []string) (due time.Time, text string, err error)
 }
+
+// Notifier delivers a task notification to the end user (e.g. via Telegram).
+type Notifier interface {
+	Notify(ctx context.Context, task Task) error
+}
