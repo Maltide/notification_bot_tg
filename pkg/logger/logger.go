@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Logger builds a SugaredLogger with the given log level (defaults to info on parse errors).
 func Logger(loglevel string) (*zap.SugaredLogger, error) {
 	cfg := zap.NewProductionConfig()
 

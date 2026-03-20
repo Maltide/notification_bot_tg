@@ -1,0 +1,113 @@
+package bot
+
+import (
+	"context"
+	"strings"
+	"time"
+
+	"github.com/Maltide/notification_bot_tg/pkg/config"
+	helperpkg "github.com/Maltide/notification_bot_tg/pkg/helpers"
+	"github.com/Maltide/notification_bot_tg/pkg/types"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"go.uber.org/zap"
+)
+
+// Bot wraps telegram-bot-api and handles update/command routing.
+type Bot struct {
+	api        *tgbotapi.BotAPI
+	logger     *zap.SugaredLogger
+	cmdHandler *helperpkg.Handler
+	config     *config.Config
+}
+
+// NewBot constructs a new Bot instance.
+func NewBot(api *tgbotapi.BotAPI, logger *zap.SugaredLogger, cmdHandler *helperpkg.Handler, config *config.Config) *Bot {
+	return &Bot{api: api, logger: logger, cmdHandler: cmdHandler, config: config}
+}
+
+// Start begins receiving updates from Telegram and dispatching them.
+func (b *Bot) Start(ctx context.Context) error {
+	updateCfg := tgbotapi.NewUpdate(0)
+	updateCfg.Timeout = b.config.TGTimeout
+
+	updateCh := make(chan tgbotapi.Update)
+
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			update, err := b.api.GetUpdates(updateCfg)
+			if err != nil {
+				b.logger.Error("update issue:", err)
+				continue
+			}
+
+			if len(update) == 0 {
+				time.Sleep(300 * time.Millisecond)
+				continue
+			}
+			for i := range update {
+				updateCh <- update[i]
+				lastupdateID := update[i].UpdateID
+				updateCfg.Offset = lastupdateID + 1
+			}
+		}
+	}(ctx)
+
+	// notifications are delivered directly via Bot.Notify called by the scheduler
+
+	for {
+		select {
+		case <-ctx.Done():
+			close(updateCh)
+			return ctx.Err()
+		case upd, ok := <-updateCh:
+			if !ok {
+				return nil
+			}
+			b.handleUpdate(ctx, upd)
+		}
+	}
+}
+
+func (b *Bot) handleUpdate(ctx context.Context, upd tgbotapi.Update) {
+	if upd.Message == nil {
+		return
+	}
+
+	b.logger.Infof("Update received: from=%v chat=%v text=%q", upd.Message.From.ID, upd.Message.Chat.ID, upd.Message.Text)
+	if upd.Message.IsCommand() {
+		b.handleCommand(ctx, upd.Message)
+		return
+	}
+	b.sendMessage(upd.Message.Chat.ID, "Вам может помочь команда /help")
+	// TODO: здесь будет обработка обычных сообщений (создание напоминаний).
+}
+
+func (b *Bot) handleCommand(ctx context.Context, msg *tgbotapi.Message) {
+	command := "/" + msg.Command()
+	commandArgs := msg.CommandArguments()
+	args := strings.Fields(commandArgs)
+	b.logger.Infof("Command: user=%d chat=%d cmd=%s args=%v", msg.From.ID, msg.Chat.ID, command, args)
+	response := b.cmdHandler.HandleCommand(ctx, msg.From.ID, msg.Chat.ID, command, args)
+	reply := tgbotapi.NewMessage(msg.Chat.ID, response)
+	b.sendMessage(reply.ChatID, reply.Text)
+}
+
+// Notify sends a reminder to the user for the provided task.
+func (b *Bot) Notify(ctx context.Context, task types.Task) error {
+	return b.sendMessage(task.ChatID, task.Text)
+}
+
+func (b *Bot) sendMessage(chatID int64, text string) error {
+	message := tgbotapi.NewMessage(chatID, text)
+	if _, err := b.api.Send(message); err != nil {
+		b.logger.Errorf("failed to send message: %v", err)
+		return err
+	}
+	return nil
+}

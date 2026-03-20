@@ -4,41 +4,79 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 
+	botpkg "github.com/Maltide/notification_bot_tg/pkg/bot"
 	"github.com/Maltide/notification_bot_tg/pkg/config"
+	"github.com/Maltide/notification_bot_tg/pkg/db"
+	helperpkg "github.com/Maltide/notification_bot_tg/pkg/helpers"
 	"github.com/Maltide/notification_bot_tg/pkg/logger"
+	parserpkg "github.com/Maltide/notification_bot_tg/pkg/parser"
+	"github.com/Maltide/notification_bot_tg/pkg/scheduler"
 	"github.com/Maltide/notification_bot_tg/pkg/store"
-	"github.com/Maltide/notification_bot_tg/pkg/types"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// main is the program entry point: it initializes services and starts the bot and scheduler.
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "config:", err)
+		fmt.Fprintln(os.Stderr, "main: config:", err)
 		os.Exit(1)
 	}
+
 	log, err := logger.Logger(cfg.LogLevel)
 	if err != nil {
 		os.Exit(1)
 	}
-	log.Info("start")
 
-	ms := store.MemoryStore{Logger: log, Data: make(map[int64]map[int64]types.Task)}
-	tasks := []types.Task{
-		{UserID: 1, Text: "divan"},
-		{UserID: 1, Text: "divanqjikefrhoiqefr"},
-		{UserID: 2, Text: "divan2"},
-		{UserID: 3, Text: "divan3"},
+	log.Info("main: logger started")
+
+	ctx := context.Background()
+
+	db := db.DBInit(log, cfg, ctx)
+
+	postgStore := store.NewPostgresStore(db, log)
+
+	// no explicit signal handling; rely on Docker/OS to stop the process
+
+	var wg sync.WaitGroup
+
+	api, err := tgbotapi.NewBotAPI(cfg.TGToken)
+	if err != nil {
+		log.Errorf(err.Error())
+		return
 	}
-	for _, t := range tasks {
-		ms.CreateTask(context.Background(), t)
-	}
 
-	tasks1, err := ms.ListTasks(context.Background(), 1)
-	log.Info("User's tasks:", tasks1)
+	parser := parserpkg.NewTimeParser()
 
-	ms.DeleteTask(context.Background(), 1, 1)
+	// create handler without scheduler to avoid constructor cycle
+	handler := helperpkg.NewHandler(postgStore, nil, log, parser)
 
-	tasks2, err := ms.ListTasks(context.Background(), 1)
-	log.Info("User's tasks:", tasks2)
+	// create bot with handler
+	bot := botpkg.NewBot(api, log, handler, &cfg)
+
+	// create scheduler and pass the bot as Notifier
+	sched := scheduler.NewTimerScheduler(postgStore, bot, log)
+
+	// attach scheduler to handler now that it exists
+	handler.SetScheduler(sched)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sched.Start(ctx)
+	}()
+
+	// Важно: после рестарта задачи уже лежат в БД. Refresh заставит scheduler выбрать ближайшую.
+	sched.Refresh()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		bot.Start(ctx)
+	}()
+
+	// block until process is stopped externally (e.g., Docker sends SIGTERM)
+	select {}
 }
