@@ -2,12 +2,15 @@ package scheduler
 
 import (
 	"context"
+	"database/sql"
+	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/Maltide/notification_bot_tg/pkg/store"
 	"github.com/Maltide/notification_bot_tg/pkg/types"
+	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
 
@@ -18,13 +21,54 @@ type fnNotifier struct {
 
 func (n fnNotifier) Notify(ctx context.Context, task types.Task) error { return n.f(ctx, task) }
 
+func openTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL is not set; skipping Postgres-backed scheduler race test")
+	}
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		t.Fatalf("ping db: %v", err)
+	}
+	// Ensure schema exists.
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS tasks (
+			id BIGSERIAL PRIMARY KEY,
+			user_id BIGINT NOT NULL,
+			chat_id BIGINT,
+			user_task_id BIGINT NOT NULL,
+			text TEXT NOT NULL,
+			due_at TIMESTAMPTZ NOT NULL
+		);
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_user_user_task_id ON tasks(user_id, user_task_id);
+		CREATE INDEX IF NOT EXISTS idx_tasks_due_at ON tasks(due_at);
+	`); err != nil {
+		_ = db.Close()
+		t.Fatalf("ensure schema: %v", err)
+	}
+	return db
+}
+
+func truncateTasks(t *testing.T, db *sql.DB) {
+	t.Helper()
+	if _, err := db.Exec("TRUNCATE tasks RESTART IDENTITY"); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+}
+
 func TestScheduler_Race(t *testing.T) {
 	logger := zap.NewNop().Sugar()
 
-	st := &store.MemoryStore{
-		Data:   make(map[int64]map[int64]types.Task),
-		Logger: logger,
-	}
+	db := openTestDB(t)
+	defer db.Close()
+	truncateTasks(t, db)
+
+	st := store.NewPostgresStore(db, zap.NewNop().Sugar())
 
 	notifyFn := func(ctx context.Context, task types.Task) error {
 		// пусто — нам важно только гонки поймать
